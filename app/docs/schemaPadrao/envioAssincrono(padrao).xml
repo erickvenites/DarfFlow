@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?><Reinf xmlns="http://www.reinf.esocial.gov.br/schemas/envioLoteEventosAssincrono/v1_00_00" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.reinf.esocial.gov.br/schemas/envioLoteEventosAssincrono/v1_00_00 http://www.reinf.esocial.gov.br/schemas/envioLoteEventosAssincrono/v1_00_00/schema.xsd"><envioLoteEventos><ideContribuinte><tpInsc></tpInsc><nrInsc></nrInsc></ideContribuinte><eventos></eventos></envioLoteEventos></Reinf>

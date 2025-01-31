@@ -1,0 +1,38 @@
+version: "3.8"
+services:
+
+  postgres:
+    image: postgres
+    container_name: postgres-dev
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+      - ./backup_db:/backup_db
+    ports:
+      - "8001:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./app:/app
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=${FLASK_ENV}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DEV_DATABASE_URL=${DEV_DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENDPOINT_URL=${ENDPOINT_URL}
+
+
+volumes:
+  postgres-data:

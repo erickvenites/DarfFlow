@@ -1,0 +1,11 @@
+.venv
+/venv
+.env
+**/__pycache__/
+**/.env/
+**/logs/
+**/backup_db
+**/postgres-data
+**/uploads
+**/docs/schemas
+**/docs/certificate

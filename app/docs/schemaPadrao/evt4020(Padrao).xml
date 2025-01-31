@@ -1,0 +1,67 @@
+<Reinf xmlns="http://www.reinf.esocial.gov.br/schemas/evt4020PagtoBeneficiarioPJ/v2_01_02">
+<!-- Xml do Evento(Padrão) -->
+    <evtRetPJ> <!-- Evento retencoes na fonte PJ -->
+
+        <ideEvento> <!-- Informacoes de identificacao do evento -->
+
+            <indRetif>1</indRetif> <!-- Indicativo de Retificacao value=1|2 -->
+
+            <perApur>2024-06</perApur> <!-- Periodo de apuracao -->
+
+            <tpAmb>1</tpAmb> <!-- Tipo de ambiente  value=1|2-->
+
+            <procEmi>1</procEmi> <!--Processo de emissao do evento value=1|2-->
+
+            <verProc>1</verProc> <!--Versao do processo de emissao do evento tamanhoMinimo value="1"  tamanhoMaximo value="20"-->
+
+        </ideEvento>
+        
+        <ideContri> <!--Informacoes de identificacao do contribuinte-->
+
+            <tpInsc>1</tpInsc> <!--tpInsc value=1|2-->
+
+            <nrInsc>00394502014870</nrInsc> <!--nrInsc-->
+
+        </ideContri>
+
+        <ideEstab> <!--Informacoes de identificacao do estabelecimento-->
+
+            <tpInscEstab>1</tpInscEstab> <!--Tipo de inscricao do estabelecimento value=1|2|3-->
+
+            <nrInscEstab>00394502014870</nrInscEstab> <!--Numero de inscricao do estabelecimento-->
+
+            <ideBenef> <!--Identificacao do beneficiario do rendimento-->
+
+                <cnpjBenef>00028682000140</cnpjBenef> <!--CNPJ do beneficiario-->
+
+                    <idePgto> <!--Identificacao do rendimento-->
+
+                        <natRend>17009</natRend> <!--Natureza do Rendimento-->
+
+                        <infoPgto> <!--Informacoes relativas ao pagamento-->
+
+                            <dtFG>2024-06-31</dtFG> <!--Data do pagamento-->
+
+                            <vlrBruto>14000,00</vlrBruto> <!--Valor bruto-->
+
+                            <indJud>N</indJud> <!--Indicativo de rendimento oriundo de decisao judicial-->
+
+                            <retencoes> <!--Informacoes relativas a retencoes na fonte-->
+
+                                <vlrBaseAgreg>14000,00</vlrBaseAgreg> <!--Valor da base retencoes agregadas-->
+
+                                <vlrAgreg>819,00</vlrAgreg> <!--Valor retencao de tributos em valor agregado-->
+
+                            </retencoes>
+
+                        </infoPgto>
+
+                    </idePgto>
+
+            </ideBenef>
+
+        </ideEstab>
+
+    </evtRetPJ>
+
+</Reinf>
