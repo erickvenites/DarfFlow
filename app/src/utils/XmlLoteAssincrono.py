@@ -37,7 +37,7 @@ class XmlLoteAssincrono(XmlModel):
     @staticmethod
     def generate_random_id_event(tamanho: int = 8) -> str:
         """
-        Gera um identificador aleatório para um evento.
+        Gera um identificador aleatório para um event.
 
         Args:
             tamanho (int): Tamanho do identificador. Padrão é 8.
@@ -65,7 +65,7 @@ class XmlLoteAssincrono(XmlModel):
                 return file.read()
         except Exception as e:
             logger.error(
-                f"Erro ao carregar o arquivo base XML: {type(e).__name__} - {e}"
+                f"Erro ao carregar o file base XML: {type(e).__name__} - {e}"
             )
             return None
 
@@ -73,12 +73,12 @@ class XmlLoteAssincrono(XmlModel):
         self, events: List[str], output_dir: str, file_index: int
     ) -> None:
         """
-        Salva eventos em um arquivo XML.
+        Salva eventos em um file XML.
 
         Args:
             events (List[str]): Lista de eventos em formato XML.
             output_dir (str): Diretório de saída.
-            file_index (int): Índice do arquivo.
+            file_index (int): Índice do file.
         """
         try:
             base_xml: Optional[str] = self.load_base_xml_structure()
@@ -111,37 +111,37 @@ class XmlLoteAssincrono(XmlModel):
                 f'<?xml version="1.0" encoding="UTF-8"?>{minified_xml}'
             )
 
-            file_name: str = f"evento-lote-{file_index}.xml"
+            file_name: str = f"event-lote-{file_index}.xml"
             file_path: str = os.path.join(output_dir, file_name)
             os.makedirs(output_dir, exist_ok=True)
 
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(xml_with_declaration)
 
-            logger.info(f"Lote de eventos salvo no arquivo: {file_path}")
+            logger.info(f"Lote de eventos salvo no file: {file_path}")
         except Exception as e:
             logger.error(
-                f"Erro ao salvar o lote de eventos no arquivo: {type(e).__name__} - {e}"
+                f"Erro ao salvar o lote de eventos no file: {type(e).__name__} - {e}"
             )
 
     def process_xmls_zip(
-        self, zip_file: Union[str, BytesIO], om: str, zip_filename: str, event: str
+        self, zip_file: Union[str, BytesIO], company_id: str, zip_filename: str, event: str
     ) -> Optional[str]:
         """
-        Processa os arquivos XML contidos em um arquivo ZIP.
+        Processa os arquivos XML contidos em um file ZIP.
 
         Args:
-            zip_file (Union[str, BytesIO]): Caminho ou conteúdo do arquivo ZIP.
-            om (str): Organização militar ou identificador associado.
-            zip_filename (str): Nome do arquivo ZIP.
-            event (str): Nome do evento.
+            zip_file (Union[str, BytesIO]): Caminho ou conteúdo do file ZIP.
+            company_id (str): Identificador da empresa.
+            zip_filename (str): Nome do file ZIP.
+            event (str): Nome do event.
 
         Returns:
             Optional[str]: Mensagem de sucesso ou None em caso de erro.
         """
         try:
             output_processed_dir: str = os.path.join(
-                UPLOAD_FOLDER, "temp", om, event, zip_filename
+                UPLOAD_FOLDER, "temp", company_id, event, zip_filename
             )
             os.makedirs(output_processed_dir, exist_ok=True)
 
@@ -156,7 +156,7 @@ class XmlLoteAssincrono(XmlModel):
                     ).strip()
 
                 event_xml: str = (
-                    f'<evento Id="{self.generate_random_id_event()}">{content}</evento>'
+                    f'<event Id="{self.generate_random_id_event()}">{content}</event>'
                 )
                 events.append(event_xml)
 
@@ -174,10 +174,10 @@ class XmlLoteAssincrono(XmlModel):
     @staticmethod
     def extract_zip_files(zip_file: Union[str, BytesIO]) -> List[BytesIO]:
         """
-        Extrai arquivos XML de um arquivo ZIP.
+        Extrai arquivos XML de um file ZIP.
 
         Args:
-            zip_file (Union[str, BytesIO]): Caminho ou conteúdo do arquivo ZIP.
+            zip_file (Union[str, BytesIO]): Caminho ou conteúdo do file ZIP.
 
         Returns:
             List[BytesIO]: Lista de arquivos XML extraídos.

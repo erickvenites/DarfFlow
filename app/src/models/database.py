@@ -2,9 +2,9 @@ import uuid
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import func, Enum, Index
 import enum
-from src import db
+from src.models import db
 
-# Enum para status do arquivo
+# Enum para status do file
 class FileStatus(enum.Enum):
     RECEBIDO = 'Recebido'
     CONVERTIDO = 'Convertido'
@@ -13,138 +13,138 @@ class FileStatus(enum.Enum):
 
 
 class EventSpreadsheet(db.Model):
-    __tablename__ = "tb_planilhas"
+    __tablename__ = "tb_spreadsheets"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True)
-    om = db.Column(db.String(50), nullable=False)  # Organização Militar Ex.: (DADM)
-    evento = db.Column(db.String(255), nullable=False)  # Nome do Evento Ex.: 4020...
-    nome_arquivo = db.Column(db.String(255), nullable=False)  # Nome da planilha
-    tipo = db.Column(db.String(255), nullable=False)  # Formato do arquivo (xlsx, xml)
-    status = db.Column(db.Enum(FileStatus), nullable=False)  # Enum para status
-    caminho = db.Column(db.String(255), nullable=False)  # Caminho da planilha
-    data_recebimento = db.Column(db.DateTime, nullable=False, default=func.now())  # timestamps
-    #updated_at = db.Column(db.DateTime, nullable=False, default=func.now(), onupdate=func.now())  # Para rastrear alterações
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = db.Column(db.String(50), nullable=False)  # Company identifier (CNPJ, code, etc)
+    event = db.Column(db.String(255), nullable=False)  # EFD-Reinf Event Code Ex.: 4020, 2010, etc
+    filename = db.Column(db.String(255), nullable=False)  # Spreadsheet filename
+    file_type = db.Column(db.String(255), nullable=False)  # File format (xlsx, xml)
+    status = db.Column(db.Enum(FileStatus), nullable=False)  # Status enum
+    path = db.Column(db.String(255), nullable=False)  # File path
+    received_date = db.Column(db.DateTime, nullable=False, default=func.now())  # Timestamp
+    #updated_at = db.Column(db.DateTime, nullable=False, default=func.now(), onupdate=func.now())  # For tracking changes
 
-    # Relacionamento
-    planilhas = db.relationship('ConvertedSpreadsheet', backref='arquivo', lazy='dynamic')
+    # Relationship
+    spreadsheets = db.relationship('ConvertedSpreadsheet', backref='file', lazy='dynamic')
 
     def to_dict(self):
         return{
             "id":self.id,
-            "om": self.om,
-            "evento": self.evento,
-            "nome_arquivo": self.nome_arquivo,
-            "tipo": self.tipo,
+            "company_id": self.company_id,
+            "event": self.event,
+            "filename": self.filename,
+            "file_type": self.file_type,
             "status": self.status.name,
-            "caminho": self.caminho,
-            "data_recebimento": self.data_recebimento,
+            "path": self.path,
+            "received_date": self.received_date,
         }
 
 
 class ConvertedSpreadsheet(db.Model):
-    __tablename__ = "tb_planilhas_convertidas"
+    __tablename__ = "tb_converted_spreadsheets"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    planilha_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_planilhas.id'), nullable=False)  # Referência à planilha convertida
-    caminho = db.Column(db.String(255), nullable=False)
-    total_xmls_gerados = db.Column(db.Integer, nullable=False)
-    data_conversao = db.Column(db.DateTime, nullable=False, default=func.now())
-    
-    # Relacionamento
-    assinados = db.relationship('SignedXmls', backref='convertido', lazy='dynamic')
+    spreadsheet_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_spreadsheets.id'), nullable=False)  # Reference to converted spreadsheet
+    path = db.Column(db.String(255), nullable=False)
+    total_generated_xmls = db.Column(db.Integer, nullable=False)
+    converted_date = db.Column(db.DateTime, nullable=False, default=func.now())
+
+    # Relationship
+    signed_files = db.relationship('SignedXmls', backref="converted", lazy='dynamic')
 
     def to_dict(self):
-            planilha_base = {
-                "planilha_id": self.arquivo.id,
-                "om": self.arquivo.om,
-                "evento": self.arquivo.evento,
+            spreadsheet_base = {
+                "spreadsheet_id": self.file.id,
+                "company_id": self.file.company_id,
+                "event": self.file.event,
             }
             return {
-                **planilha_base,
+                **spreadsheet_base,
                 "id": self.id,
-                "caminho": self.caminho,
-                "total_xmls_gerados": self.total_xmls_gerados,
-                "data_conversao": self.data_conversao
+                "path": self.path,
+                "total_generated_xmls": self.total_generated_xmls,
+                "converted_date": self.converted_date
             }
 
 
 class SignedXmls(db.Model):
-    __tablename__ = "tb_xmls_assinados"
+    __tablename__ = "tb_signed_xmls"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    planilha_convertida_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_planilhas_convertidas.id'), nullable=False)  # Referência ao XML convertido
-    caminho = db.Column(db.String(255), nullable=False)
-    data_assinatura = db.Column(db.DateTime, nullable=False, default=func.now())
+    converted_spreadsheet_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_converted_spreadsheets.id'), nullable=False)  # Reference to converted XML
+    path = db.Column(db.String(255), nullable=False)
+    signed_date = db.Column(db.DateTime, nullable=False, default=func.now())
 
-    # Relacionamento
-    enviados = db.relationship('XmlsSent', backref='assinado', lazy='dynamic')
+    # Relationship
+    sent_files = db.relationship('XmlsSent', backref="signed", lazy='dynamic')
 
     def to_dict(self):
-        planilha_base = {
-            "planilha_id": self.convertido.arquivo.id,
-            "om": self.convertido.arquivo.om,
-            "evento": self.convertido.arquivo.evento,
+        spreadsheet_base = {
+            "spreadsheet_id": self.converted.file.id,
+            "company_id": self.converted.file.company_id,
+            "event": self.converted.file.event,
         }
         return {
-            **planilha_base,
+            **spreadsheet_base,
             "id": self.id,
-            "caminho": self.caminho,
-            "data_assinatura": self.data_assinatura
+            "path": self.path,
+            "signed_date": self.signed_date
         }
 
 
 class XmlsSent(db.Model):
-    __tablename__ = "tb_xmls_enviados"
+    __tablename__ = "tb_sent_xmls"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id_xml_assinado = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_xmls_assinados.id'), nullable=False)  # Referência ao XML assinado
-    caminho = db.Column(db.String(255), nullable=False)
-    status_envio = db.Column(db.String(255), nullable=False)
-    protocolo_envio=db.Column(db.String(255),nullable=False)
-    data_envio = db.Column(db.DateTime, nullable=False, default=func.now())
+    signed_xml_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_signed_xmls.id'), nullable=False)  # Reference to signed XML
+    path = db.Column(db.String(255), nullable=False)
+    send_status = db.Column(db.String(255), nullable=False)
+    send_protocol=db.Column(db.String(255),nullable=False)
+    sent_date = db.Column(db.DateTime, nullable=False, default=func.now())
 
-    # Relacionamento
-    respostas = db.relationship('ShippingResponse', backref='enviado', lazy='dynamic')
+    # Relationship
+    responses = db.relationship('ShippingResponse', backref="sent", lazy='dynamic')
     
     def to_dict(self):
-            planilha_base = {
-                "planilha_id": self.assinado.convertido.arquivo.id,
-                "om": self.assinado.convertido.arquivo.om,
-                "evento": self.assinado.convertido.arquivo.evento,
-                "status": self.assinado.convertido.arquivo.status.name
+            spreadsheet_base = {
+                "spreadsheet_id": self.signed.converted.file.id,
+                "company_id": self.signed.converted.file.company_id,
+                "event": self.signed.converted.file.event,
+                "status": self.signed.converted.file.status.name
             }
             return {
-                **planilha_base,
+                **spreadsheet_base,
                 "sent_id": self.id,
-                "caminho": self.caminho,
-                "status_envio": self.status_envio.name,
-                "data_envio": self.data_envio
+                "path": self.path,
+                "send_status": self.send_status.name,
+                "sent_date": self.sent_date
             }
 
 class ShippingResponse(db.Model):
-    __tablename__ = "tb_resposta_envio"
+    __tablename__ = "tb_shipping_response"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    enviado_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_xmls_enviados.id'), nullable=False)  # Referência ao XML enviado
-    caminho = db.Column(db.String(255), nullable=False)
-    data_resposta = db.Column(db.DateTime, nullable=False, default=func.now())
+    sent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_sent_xmls.id'), nullable=False)  # Reference to sent XML
+    path = db.Column(db.String(255), nullable=False)
+    response_date = db.Column(db.DateTime, nullable=False, default=func.now())
 
     def to_dict(self):
-        planilha_base = {
-            "planilha_id": self.enviado.assinado.convertido.arquivo.id,
-            "om": self.enviado.assinado.convertido.arquivo.om,
-            "evento": self.enviado.assinado.convertido.arquivo.evento,
-            "status": self.enviado.assinado.convertido.arquivo.status.name
+        spreadsheet_base = {
+            "spreadsheet_id": self.sent.signed.converted.file.id,
+            "company_id": self.sent.signed.converted.file.company_id,
+            "event": self.sent.signed.converted.file.event,
+            "status": self.sent.signed.converted.file.status.name
         }
         return {
-            **planilha_base,
+            **spreadsheet_base,
             "response_id": self.id,
-            "caminho": self.caminho,
-            "data_resposta": self.data_resposta
+            "path": self.path,
+            "response_date": self.response_date
         }
 
-# Definição dos índices
-Index('ix_planilha_id_convertida', ConvertedSpreadsheet.planilha_id)
-Index('ix_convertido_id_assinado', SignedXmls.planilha_convertida_id)
-Index('ix_assinado_id_enviado', XmlsSent.id_xml_assinado)
-Index('ix_enviado_id_resposta', ShippingResponse.enviado_id)
+# Index definitions
+Index('ix_spreadsheet_id_converted', ConvertedSpreadsheet.spreadsheet_id)
+Index('ix_converted_id_signed', SignedXmls.converted_spreadsheet_id)
+Index('ix_signed_id_sent', XmlsSent.signed_xml_id)
+Index('ix_sent_id_response', ShippingResponse.sent_id)

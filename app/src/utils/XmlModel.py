@@ -13,9 +13,9 @@ class XmlModel:
 
     Attributes:
         PROCESSED_FOLDER (str): Diretório onde os arquivos processados serão armazenados.
-        file_path (str): Caminho do arquivo Excel de entrada.
-        df_spreadsheet (pd.DataFrame): DataFrame contendo os dados da planilha.
-        event_cls (Type): Classe associada ao tipo de evento.
+        file_path (str): Caminho do file Excel de entrada.
+        df_spreadsheet (pd.DataFrame): DataFrame contendo os dados da spreadsheet.
+        event_cls (Type): Classe associada ao tipo de event.
         current_date (Optional[date]): Data atual, usada para controle de arquivos diários.
         daily_index (int): Índice diário para evitar duplicação de nomes de arquivos.
     """
@@ -25,8 +25,8 @@ class XmlModel:
         Inicializa a instância do XmlModel.
 
         Args:
-            file_path (str): Caminho para o arquivo Excel.
-            event_cls (Type): Classe associada ao evento.
+            file_path (str): Caminho para o file Excel.
+            event_cls (Type): Classe associada ao event.
         """
         self.PROCESSED_FOLDER: str = os.path.join(UPLOAD_FOLDER, "planilhas_convertidas")
         self.file_path: str = file_path
@@ -39,29 +39,29 @@ class XmlModel:
 
     def read_spreadsheet(self) -> None:
         """
-        Lê a planilha Excel e armazena os dados em um DataFrame.
+        Lê a spreadsheet Excel e armazena os dados em um DataFrame.
 
         Se houver erro durante a leitura, um DataFrame vazio será atribuído.
         """
         try:
             self.df_spreadsheet = pd.read_excel(self.file_path)
         except Exception as e:
-            logger.error(f"Erro ao ler a planilha Excel: {e}")
+            logger.error(f"Erro ao ler a spreadsheet Excel: {e}")
             self.df_spreadsheet = pd.DataFrame()
 
     def process_events(self, event: Dict) -> List[str]:
         """
-        Processa eventos a partir dos dados na planilha e retorna uma lista de XMLs.
+        Processa eventos a partir dos dados na spreadsheet e retorna uma lista de XMLs.
 
         Args:
-            event (Dict): Estrutura inicial do evento, podendo ser modificada durante o processamento.
+            event (Dict): Estrutura inicial do event, podendo ser modificada durante o processamento.
 
         Returns:
             List[str]: Lista de strings contendo os XMLs gerados.
         """
         xmls: List[str] = []
         if self.df_spreadsheet is None:
-            logger.error("DataFrame da planilha está vazio. Nenhum evento será processado.")
+            logger.error("DataFrame da spreadsheet está vazio. Nenhum event será processado.")
             return xmls
 
         for index, row in self.df_spreadsheet.iterrows():
@@ -71,7 +71,7 @@ class XmlModel:
 
             event_data = self.prepare_event(row, index)
             if "error" in event_data:
-                logger.error(f"Erro no evento da linha {index + 1}: {event_data['error']}")
+                logger.error(f"Erro no event da linha {index + 1}: {event_data['error']}")
                 continue
 
             xml_str = self.generate_xml(event_data)
@@ -83,33 +83,33 @@ class XmlModel:
 
     def prepare_event(self, row: pd.Series, row_index: int) -> Dict:
         """
-        Prepara os dados de um evento a partir de uma linha da planilha.
+        Prepara os dados de um event a partir de uma linha da spreadsheet.
 
         Args:
-            row (pd.Series): Linha da planilha.
+            row (pd.Series): Linha da spreadsheet.
             row_index (int): Índice da linha atual.
 
         Returns:
-            Dict: Dados do evento prontos para serem processados.
+            Dict: Dados do event prontos para serem processados.
         """
         return {col: row[col] for col in row.index if pd.notnull(row[col])}
 
-    def export_xml(self, xml_str: str, om: str, year: str, event: str) -> None:
+    def export_xml(self, xml_str: str, company_id: str, year: str, event: str) -> None:
         """
         Exporta o XML gerado para o diretório apropriado.
 
         Args:
             xml_str (str): String contendo o XML.
-            om (str): Organização Militar ou identificador associado.
-            year (str): Ano relacionado ao evento.
-            event (str): Nome do evento.
+            company_id (str): Identificador da empresa.
+            year (str): Ano relacionado ao event.
+            event (str): Nome do event.
         """
         spreadsheet_name: str = os.path.splitext(os.path.basename(self.file_path))[0]
-        output_folder: str = os.path.join(self.PROCESSED_FOLDER, om, event, year, spreadsheet_name)
+        output_folder: str = os.path.join(self.PROCESSED_FOLDER, company_id, event, year, spreadsheet_name)
 
         current_year: str = str(datetime.now().year)
         if year != current_year:
-            logger.error(f"O ano de {year} não corresponde com o atual: {current_year}")
+            logger.error(f"O year de {year} não corresponde com o atual: {current_year}")
             return
 
         os.makedirs(output_folder, exist_ok=True)

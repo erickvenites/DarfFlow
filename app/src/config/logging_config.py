@@ -12,7 +12,7 @@ def setup_logging():
     # Cria o diretório 'logs' se não existir
     os.makedirs(LoggingConfig.LOG_DIRECTORY, exist_ok=True)
 
-    # Define o formato do nome do arquivo de log com data e hora
+    # Define o formato do nome do file de log com data e hora
     current_time = datetime.now().strftime("%d-%m-%y-%Hh%Mm")
     log_filename = os.path.join(LoggingConfig.LOG_DIRECTORY, f"XML-log-{current_time}.log")
 
@@ -20,7 +20,7 @@ def setup_logging():
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    # Cria um TimedRotatingFileHandler que cria um novo arquivo de log diariamente
+    # Cria um TimedRotatingFileHandler que cria um novo file de log diariamente
     handler = TimedRotatingFileHandler(
         log_filename,
         when="D",  # Roda a cada dia

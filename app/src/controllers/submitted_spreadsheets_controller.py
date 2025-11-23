@@ -7,7 +7,7 @@ from src import db
 from src.middleware.auth import verify_token
 from typing import List, Tuple, Optional
 
-received_bp = Blueprint("received_bp", __name__, url_prefix='/api/planilhas')
+received_bp = Blueprint("received_bp", __name__, url_prefix='/api/spreadsheets')
 received_service = SubmittedSpreadsheetsService()
 
 def check_required_params(params: List[str]) -> bool:
@@ -29,25 +29,25 @@ def check_required_params(params: List[str]) -> bool:
 @received_bp.route("/upload", methods=["POST"])
 def upload_spreadsheet() -> Tuple[dict, int]:
     """
-    Endpoint para realizar o upload de uma planilha.
+    Endpoint para realizar o upload de uma spreadsheet.
     
-    Valida os parâmetros necessários e processa o upload da planilha.
+    Valida os parâmetros necessários e processa o upload da spreadsheet.
     
     Returns:
-        Tuple[dict, int]: Resposta em formato JSON com a mensagem de status e o código de status HTTP.
+        Tuple[dict, int]: Resposta em formato JSON com a message de status e o código de status HTTP.
     """
     try:
-        om = request.args.get("om")
-        event = request.args.get("evento")
+        company_id = request.args.get("company_id")
+        event = request.args.get("event")
 
-        if not om or not event:
-            return respond_with_error("OM e evento são obrigatórios", 400)
+        if not company_id or not event:
+            return respond_with_error("company_id e event são obrigatórios", 400)
 
-        if "planilha" not in request.files or request.files["planilha"].filename == "":
-            return respond_with_error("Nenhuma planilha enviada ou selecionada", 400)
+        if "spreadsheet" not in request.files or request.files["spreadsheet"].filename == "":
+            return respond_with_error("Nenhuma spreadsheet enviada ou selecionada", 400)
 
-        file = request.files["planilha"]
-        response_message, status_code = received_service.process_upload(file, om, event)
+        file = request.files["spreadsheet"]
+        response_message, status_code = received_service.process_upload(file, company_id, event)
 
         return jsonify(response_message), status_code
 
@@ -59,20 +59,20 @@ def upload_spreadsheet() -> Tuple[dict, int]:
 @verify_token
 def download_spreadsheet() -> Optional[send_file]:
     """
-    Endpoint para realizar o download de uma planilha registrada.
+    Endpoint para realizar o download de uma spreadsheet registrada.
     
-    Valida o ID da planilha e retorna o arquivo solicitado.
+    Valida o ID da spreadsheet e retorna o file solicitado.
     
     Returns:
-        Optional[send_file]: Retorna o arquivo para download, ou resposta de erro.
+        Optional[send_file]: Retorna o file para download, ou resposta de erro.
     """
     try:
-        spreadsheet_id = request.args.get("planilha_id")
+        spreadsheet_id = request.args.get("spreadsheet_id")
 
         logger.info("Download solicitado para Planilha ID: %s", spreadsheet_id)
 
         if not spreadsheet_id:
-            return respond_with_error("ID da planilha é obrigatório!", 400)
+            return respond_with_error("ID da spreadsheet é obrigatório!", 400)
 
         response_message, status_code, file_path = received_service.download_file(spreadsheet_id)
         if status_code != 200:
@@ -88,30 +88,50 @@ def download_spreadsheet() -> Optional[send_file]:
 
 @received_bp.route("/", methods=["GET"])
 @verify_token
-def get_all_spreadsheets() -> Tuple[dict, int]:
+def get_spreadsheets() -> Tuple[dict, int]:
     """
-    Endpoint para buscar todas as planilhas cadastradas com base em parâmetros obrigatórios.
-    
-    Args:
-        om (str): OM (Organização Militar) a ser consultada.
-        year (str): Ano de referência.
-        event (str): Evento relacionado.
-    
-    Returns:
-        Tuple[dict, int]: Resposta com a lista das planilhas encontradas e o código de status HTTP.
-    """
-    om = request.args.get("om")
-    year = request.args.get("ano")
-    event = request.args.get("evento")
+    Endpoint para buscar planilhas.
 
-    if not om or not year or not event:
-        logger.warning("Parâmetros obrigatórios ausentes: OM, ano e evento são necessários.")
-        return respond_with_error("Os parâmetros 'om', 'ano' e 'evento' são obrigatórios.", 400)
+    Comportamento:
+    - Se spreadsheet_id for fornecido: retorna uma spreadsheet específica
+    - Se company_id, year e event forem fornecidos: retorna todas as planilhas que correspondem aos filtros
+
+    Args:
+        spreadsheet_id (str, optional): ID da spreadsheet a ser consultada.
+        company_id (str, optional): Identificador da empresa a ser consultada.
+        year (str, optional): Ano de referência.
+        event (str, optional): Evento relacionado.
+
+    Returns:
+        Tuple[dict, int]: Resposta com os dados da(s) spreadsheet(s) ou erro.
+    """
+    spreadsheet_id = request.args.get("spreadsheet_id")
+
+    # Se spreadsheet_id for fornecido, busca spreadsheet específica
+    if spreadsheet_id:
+        try:
+            response, status_code = received_service.get_spreadsheet_by_id(spreadsheet_id)
+            return jsonify(response), status_code
+        except Exception as e:
+            logger.error(f"Erro ao buscar spreadsheet por ID: {str(e)}")
+            return respond_with_error("Erro interno do servidor.", 500)
+
+    # Caso contrário, busca todas as planilhas com base nos filtros
+    company_id = request.args.get("company_id")
+    year = request.args.get("year")
+    event = request.args.get("event")
+
+    if not company_id or not year or not event:
+        logger.warning("Parâmetros obrigatórios ausentes para busca geral.")
+        return respond_with_error(
+            "Forneça 'spreadsheet_id' para buscar uma spreadsheet específica, ou 'company_id', 'year' e 'event' para buscar múltiplas planilhas.",
+            400
+        )
 
     filters = [
-        EventSpreadsheet.om == om.upper(),
-        db.extract('year', EventSpreadsheet.data_recebimento) == int(year),
-        EventSpreadsheet.evento == event
+        EventSpreadsheet.company_id == company_id.upper(),
+        db.extract('year', EventSpreadsheet.received_date) == int(year),
+        EventSpreadsheet.event == event
     ]
 
     try:
@@ -120,13 +140,13 @@ def get_all_spreadsheets() -> Tuple[dict, int]:
         spreadsheets_data = [
             {
                 "id": str(spreadsheet.id),
-                "om": spreadsheet.om,
-                "evento": spreadsheet.evento,
-                "nome_arquivo": spreadsheet.nome_arquivo,
-                "tipo": spreadsheet.tipo,
+                "company_id": spreadsheet.company_id,
+                "event": spreadsheet.event,
+                "filename": spreadsheet.filename,
+                "file_type": spreadsheet.file_type,
                 "status": spreadsheet.status.value,
-                "caminho": spreadsheet.caminho,
-                "data_recebimento": spreadsheet.data_recebimento.isoformat(),
+                "path": spreadsheet.path,
+                "received_date": spreadsheet.received_date.isoformat(),
             }
             for spreadsheet in spreadsheets
         ]
@@ -137,87 +157,61 @@ def get_all_spreadsheets() -> Tuple[dict, int]:
         logger.error(f"Erro ao buscar planilhas: {str(e)}")
         return respond_with_error("Erro interno do servidor.", 500)
 
-@received_bp.route("/", methods=["GET"])
-@verify_token
-def get_by_id() -> Tuple[dict, int]:
-    """
-    Endpoint para buscar uma planilha específica pelo ID.
-    
-    Args:
-        planilha_id (str): ID da planilha a ser consultada.
-    
-    Returns:
-        Tuple[dict, int]: Resposta com os dados da planilha ou erro caso não encontrada.
-    """
-    spreadsheet_id = request.args.get("planilha_id")
-
-    if not spreadsheet_id:
-        return respond_with_error("O parâmetro planilha_id é obrigatório.", 400)
-
-    try:
-        response, status_code = received_service.get_spreadsheet_by_id(spreadsheet_id)
-
-        return jsonify(response), status_code
-
-    except Exception as e:
-        logger.error(f"Erro ao buscar planilhas: {str(e)}")
-        return respond_with_error("Erro interno do servidor.", 500)
-
 @received_bp.route("/", methods=["DELETE"])
 @verify_token
 def delete_event() -> Tuple[dict, int]:
     """
-    Endpoint para deletar uma planilha e o evento associado.
+    Endpoint para deletar uma spreadsheet e o event associado.
     
     Args:
-        planilha_id (str): ID da planilha a ser deletada.
+        spreadsheet_id (str): ID da spreadsheet a ser deletada.
     
     Returns:
-        Tuple[dict, int]: Resposta com a mensagem de sucesso ou erro ao tentar deletar.
+        Tuple[dict, int]: Resposta com a message de sucesso ou erro ao tentar deletar.
     """
     try:
-        spreadsheet_id = request.args.get("planilha_id")
+        spreadsheet_id = request.args.get("spreadsheet_id")
 
-        logger.info("Deletando planilha com id: %s", spreadsheet_id)
+        logger.info("Deletando spreadsheet com id: %s", spreadsheet_id)
 
         if not spreadsheet_id:
-            return respond_with_error("ID do evento é obrigatório!", 400)
+            return respond_with_error("ID do event é obrigatório!", 400)
 
         response_message, status_code = received_service.delete_event_and_associated_spreadsheet(spreadsheet_id)
 
         if status_code != 200:
-            logger.error("Erro ao deletar evento: %s", response_message)
+            logger.error("Erro ao deletar event: %s", response_message)
 
-        logger.info("Evento deletado com sucesso para a planilha com ID: %s", spreadsheet_id)
+        logger.info("Evento deletado com sucesso para a spreadsheet com ID: %s", spreadsheet_id)
         return jsonify(response_message), status_code
 
     except Exception as e:
-        logger.error("Erro ao deletar evento: %s", str(e))
-        return respond_with_error("Ocorreu um erro ao deletar o evento", 500)
+        logger.error("Erro ao deletar event: %s", str(e))
+        return respond_with_error("Ocorreu um erro ao deletar o event", 500)
 
-@received_bp.route("/processar", methods=["POST"])
+@received_bp.route("/process", methods=["POST"])
 @verify_token
 def handle_process_spreadsheet() -> Tuple[dict, int]:
     """
-    Endpoint para processar uma planilha com base no ID e CNPJ fornecido.
+    Endpoint para processar uma spreadsheet com base no ID e CNPJ fornecido.
     
     Args:
-        planilha_id (str): ID da planilha a ser processada.
-        cnpj (str): CNPJ associado à planilha.
+        spreadsheet_id (str): ID da spreadsheet a ser processada.
+        cnpj (str): CNPJ associado à spreadsheet.
     
     Returns:
-        Tuple[dict, int]: Resposta com a mensagem de sucesso ou erro ao tentar processar a planilha.
+        Tuple[dict, int]: Resposta com a message de sucesso ou erro ao tentar processar a spreadsheet.
     """
     try:
-        spreadsheet_id = request.args.get("planilha_id")
+        spreadsheet_id = request.args.get("spreadsheet_id")
         cnpj = request.args.get("cnpj")
 
         if not spreadsheet_id or not cnpj:
-            return respond_with_error("ID da planilha e CNPJ são obrigatórios", 400)
+            return respond_with_error("ID da spreadsheet e CNPJ são obrigatórios", 400)
 
         response_message, status_code = received_service.process_spreadsheet(spreadsheet_id=spreadsheet_id, cnpj=cnpj)
         return jsonify(response_message), status_code
 
     except Exception as e:
-        logger.error("Erro ao processar a planilha: %s", str(e))
-        return respond_with_error("Erro ao processar a planilha", 500)
+        logger.error("Erro ao processar a spreadsheet: %s", str(e))
+        return respond_with_error("Erro ao processar a spreadsheet", 500)

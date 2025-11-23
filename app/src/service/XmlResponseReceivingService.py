@@ -12,7 +12,7 @@ class XmlResponseReceivingService:
 
         def get_response_endpoint():
               ...
-            #Aqui deve pegar a responsa do envio dos eventos e monstrar para o usuario se o evento foi cadastrado com sucesso ou fracasso
+            #Aqui deve pegar a responsa do envio dos eventos e monstrar para o usuario se o event foi cadastrado com sucesso ou fracasso
             #Se tiver fracassado, informar o Por que
             
         

@@ -49,29 +49,29 @@ class SubmittedSpreadsheetsService:
             return False
         return True
 
-    def process_upload(self, file, om: str, event: str) -> dict:
+    def process_upload(self, file, company_id: str, event: str) -> dict:
         """
-        Processa o upload de uma planilha e a salva no diretório apropriado.
+        Processa o upload de uma spreadsheet e a salva no diretório apropriado.
 
         Args:
-            file: Arquivo da planilha a ser enviado.
-            om (str): Organização Militar.
-            event (str): Tipo de evento.
+            file: Arquivo da spreadsheet a ser sent.
+            company_id (str): Identificador da empresa (CNPJ, código, etc).
+            event (str): Tipo de event.
 
         Returns:
             dict: Resultado do processamento.
         """
-        om = om.upper()
+        company_id = company_id.upper()
         current_year = str(datetime.now().year)
         filename = secure_filename(file.filename)
 
         # Validações iniciais
         if not allowed_file_xlsx(filename):
-            logger.warning("Extensão de arquivo não permitida: %s", filename)
-            return {"message": "Extensão de arquivo não permitida"}, 400
+            logger.warning("Extensão de file não permitida: %s", filename)
+            return {"message": "Extensão de file não permitida"}, 400
 
         # Caminho do diretório
-        folder_path = os.path.join(self.RECEIVED_FOLDER, om, event, current_year)
+        folder_path = os.path.join(self.RECEIVED_FOLDER, company_id, event, current_year)
 
         # Valida o diretório
         if not self._validate_directory(folder_path):
@@ -82,29 +82,29 @@ class SubmittedSpreadsheetsService:
         file_path = os.path.join(folder_path, filename)
 
         # Verifica duplicatas
-        if EventSpreadsheet.query.filter_by(caminho=file_path).first():
+        if EventSpreadsheet.query.filter_by(path=file_path).first():
             logger.warning("Arquivo duplicado: %s", filename)
             return {"message": f"Arquivo {filename} já existe"}, 409
 
-        # Salva o arquivo fisicamente
+        # Salva o file fisicamente
         file.save(file_path)
 
         try:
             # Cria o registro no banco de dados
             new_spreadsheet = EventSpreadsheet(
-                om=om,
-                evento=event,
-                nome_arquivo=filename,
+                company_id=company_id,
+                event=event,
+                filename=filename,
                 tipo="xlsx",
                 status=FileStatus.RECEBIDO,
-                caminho=file_path,
+                path=file_path,
             )
             db.session.add(new_spreadsheet)
             db.session.commit()
 
             logger.info("Arquivo %s processado com sucesso", filename)
 
-            # Obter total de linhas da planilha
+            # Obter total de linhas da spreadsheet
             total_rows = self.get_total_rows(file_path)
             new_spreadsheet.total_linhas = total_rows
             db.session.commit()
@@ -118,27 +118,27 @@ class SubmittedSpreadsheetsService:
     @classmethod
     def get_total_rows(cls, file_path: str) -> int:
         """
-        Conta o total de linhas em uma planilha.
+        Conta o total de linhas em uma spreadsheet.
 
         Args:
-            file_path (str): Caminho do arquivo da planilha.
+            file_path (str): Caminho do file da spreadsheet.
 
         Returns:
-            int: Número de linhas na planilha.
+            int: Número de linhas na spreadsheet.
         """
         try:
             df = pd.read_excel(file_path)
             return len(df)
         except Exception as e:
-            logger.error("Erro ao contar linhas no arquivo %s: %s", file_path, str(e))
+            logger.error("Erro ao contar linhas no file %s: %s", file_path, str(e))
             return 0
 
     def download_file(self, spreadsheet_id: int) -> tuple:
         """
-        Prepara o arquivo para download usando o ID da planilha.
+        Prepara o file para download usando o ID da spreadsheet.
 
         Args:
-            spreadsheet_id (int): ID da planilha a ser baixada.
+            spreadsheet_id (int): ID da spreadsheet a ser baixada.
 
         Returns:
             tuple: Mensagem e status do processo.
@@ -149,9 +149,9 @@ class SubmittedSpreadsheetsService:
             logger.error("Planilha não encontrada no banco de dados com ID: %s", spreadsheet_id)
             return {"message": "Arquivo não encontrado"}, 404
 
-        file_path = spreadsheet.caminho
+        file_path = spreadsheet.path
 
-        # Verifica se o arquivo existe
+        # Verifica se o file existe
         if not os.path.exists(file_path):
             logger.error("Arquivo não encontrado no sistema de arquivos: %s", file_path)
             return {"message": "Arquivo não encontrado"}, 404
@@ -160,23 +160,23 @@ class SubmittedSpreadsheetsService:
             logger.warning("Arquivo vazio: %s", file_path)
             return {"message": "Arquivo vazio"}, 400
 
-        logger.info("Fazendo download do arquivo: %s", file_path)
-        return {"message": "Fazendo download do arquivo"}, 200, file_path
+        logger.info("Fazendo download do file: %s", file_path)
+        return {"message": "Fazendo download do file"}, 200, file_path
 
     def get_spreadsheet_by_id(self, file_id: int) -> dict:
         """
-        Busca uma planilha pelo ID no banco de dados.
+        Busca uma spreadsheet pelo ID no banco de dados.
 
         Args:
-            file_id (int): ID da planilha.
+            file_id (int): ID da spreadsheet.
 
         Returns:
-            dict: Dados da planilha ou erro.
+            dict: Dados da spreadsheet ou erro.
         """
         try:
             if not file_id:
-                logger.error("ID da planilha está como None")
-                return {"message": "ID da planilha não pode ser None"}, 400
+                logger.error("ID da spreadsheet está como None")
+                return {"message": "ID da spreadsheet não pode ser None"}, 400
 
             spreadsheet = EventSpreadsheet.query.filter_by(id=file_id).first()
 
@@ -189,15 +189,15 @@ class SubmittedSpreadsheetsService:
             logger.error(f"ID inválido: {file_id}")
             return {"message": "ID inválido"}, 400
         except Exception as e:
-            logger.error(f"Erro ao buscar a planilha: {str(e)}")
-            return {"message": "Erro interno ao buscar a planilha."}, 500
+            logger.error(f"Erro ao buscar a spreadsheet: {str(e)}")
+            return {"message": "Erro interno ao buscar a spreadsheet."}, 500
 
     def delete_event_and_associated_spreadsheet(self, event_id: int) -> dict:
         """
-        Deleta uma planilha e seus registros associados.
+        Deleta uma spreadsheet e seus registros associados.
 
         Args:
-            event_id (int): ID do evento para buscar a planilha associada.
+            event_id (int): ID do event para buscar a spreadsheet associada.
 
         Returns:
             dict: Resultado da operação de exclusão.
@@ -207,10 +207,10 @@ class SubmittedSpreadsheetsService:
         if not spreadsheet:
             return {"message": "Planilha não encontrada"}, 404
 
-        file_path = spreadsheet.caminho
+        file_path = spreadsheet.path
 
         try:
-            # Remoção do arquivo físico
+            # Remoção do file físico
             if os.path.exists(file_path):
                 os.remove(file_path)
 
@@ -222,21 +222,21 @@ class SubmittedSpreadsheetsService:
             return {"message": "Planilha deletada com sucesso"}, 200
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.error("Erro ao deletar planilha: %s", str(e))
+            logger.error("Erro ao deletar spreadsheet: %s", str(e))
             return {"message": "Erro ao deletar do banco"}, 500
         except OSError as e:
-            logger.error("Erro ao deletar arquivo físico: %s", str(e))
-            return {"message": "Erro ao deletar arquivo físico"}, 500
+            logger.error("Erro ao deletar file físico: %s", str(e))
+            return {"message": "Erro ao deletar file físico"}, 500
 
     def get_event_class(self, event_id: str) -> object:
         """
-        Retorna a classe correspondente ao evento baseado no ID.
+        Retorna a classe correspondente ao event baseado no ID.
 
         Args:
-            event_id (str): ID do evento.
+            event_id (str): ID do event.
 
         Returns:
-            object: Classe associada ao evento.
+            object: Classe associada ao event.
         """
         event_class = self.event_map.get(event_id)
         if not event_class:
@@ -246,65 +246,65 @@ class SubmittedSpreadsheetsService:
 
     def process_spreadsheet(self, spreadsheet_id: int, cnpj: str) -> dict:
         """
-        Processa a planilha com base no ID da planilha e CNPJ fornecido.
+        Processa a spreadsheet com base no ID da spreadsheet e CNPJ fornecido.
 
         Args:
-            spreadsheet_id (int): ID da planilha.
+            spreadsheet_id (int): ID da spreadsheet.
             cnpj (str): CNPJ para validação.
 
         Returns:
             dict: Resultado do processamento.
         """
-        # Busca a planilha pelo ID
+        # Busca a spreadsheet pelo ID
         spreadsheet = EventSpreadsheet.query.filter_by(id=spreadsheet_id).first()
 
         if not spreadsheet:
             logger.error("Planilha com ID %s não encontrada.", spreadsheet_id)
             return {"message": "Planilha não encontrada"}, 404
 
-        file_path = spreadsheet.caminho
+        file_path = spreadsheet.path
         folder_path = os.path.dirname(file_path)
-        om = spreadsheet.om
-        event = spreadsheet.evento
+        company_id = spreadsheet.company_id
+        event = spreadsheet.event
 
-        # Verifica se o caminho da pasta tem profundidade suficiente para obter o ano
+        # Verifica se o path da pasta tem profundidade suficiente para obter o year
         folder_parts = folder_path.split(os.sep)
         if len(folder_parts) < 2:
             logger.error("Caminho da pasta inválido: %s", folder_path)
             return {"message": "Caminho da pasta inválido"}, 400
 
-        year = folder_parts[-1]  # Obtém o ano a partir do caminho
+        year = folder_parts[-1]  # Obtém o year a partir do path
 
-        # Obtém o nome do arquivo sem a extensão
+        # Obtém o nome do file sem a extensão
         base_name = os.path.splitext(os.path.basename(file_path))[0]
 
-        # Monta o caminho do diretório planilhas_convertidos sem a extensão .xlsx
+        # Monta o path do diretório planilhas_convertidos sem a extensão .xlsx
         converted_sheets_folder = os.path.join(
-            self.PROCESSED_FOLDER, om, event, year, base_name
+            self.PROCESSED_FOLDER, company_id, event, year, base_name
         )
 
-        # Verifica se o arquivo existe
+        # Verifica se o file existe
         if not os.path.exists(file_path):
             os.makedirs(converted_sheets_folder,exist_ok=True)
             logger.error("Arquivo %s criado com sucesso.", file_path)
             #return {"message": "Arquivo não encontrado"}, 404
 
         try:
-            # Verifica se a planilha já foi convertida
+            # Verifica se a spreadsheet já foi convertida
             existing_conversion = ConvertedSpreadsheet.query.filter_by(
-                planilha_id=spreadsheet_id
+                spreadsheet_id=spreadsheet_id
             ).first()
 
             if existing_conversion:
-                logger.info("A planilha %s já foi convertida.", spreadsheet_id)
-                return {"message": "A planilha já foi convertida"}, 200
+                logger.info("A spreadsheet %s já foi convertida.", spreadsheet_id)
+                return {"message": "A spreadsheet já foi convertida"}, 200
 
             # AQUI ESTÁ A VALIDAÇÃO DE QUE TODAS AS CÉLULAS OBRIGATÓRIAS ESTÃO PREENCHIDAS
             event_class = self.get_event_class(event)
             event_instance = event_class(file_path=file_path, nrInsc=cnpj, nrInscEstab=cnpj)
 
-            # Valida linha por linha da planilha
-            df = pd.read_excel(file_path)  # Lê a planilha
+            # Valida linha por linha da spreadsheet
+            df = pd.read_excel(file_path)  # Lê a spreadsheet
             errors = []  # Lista para armazenar erros de validação
 
             for row_index, row in df.iterrows():
@@ -321,34 +321,34 @@ class SubmittedSpreadsheetsService:
 
             current_year = str(datetime.now().year)
             if year != current_year:
-                logger.error("O ano de %s não corresponde com o atual: %s", year, current_year)
-                return {"message": f"O ano de {year} não corresponde com o atual: {current_year}"}, 400
+                logger.error("O year de %s não corresponde com o atual: %s", year, current_year)
+                return {"message": f"O year de {year} não corresponde com o atual: {current_year}"}, 400
 
             # Exporta os XMLs gerados
             for xml_str in xmls:
-                event_instance.export_xml(xml_str, om=om, year=year, event=event)
+                event_instance.export_xml(xml_str, company_id=company_id, year=year, event=event)
 
             # Salva a referência na tabela tb_planilhas_convertidas
             new_converted_spreadsheet = ConvertedSpreadsheet(
-                planilha_id=spreadsheet_id,  # Referência à planilha convertida
-                caminho=converted_sheets_folder,  # Caminho atualizado para a pasta de XMLs convertidos
-                total_xmls_gerados=len(xmls),
-                data_conversao=datetime.now(),
+                spreadsheet_id=spreadsheet_id,  # Referência à spreadsheet convertida
+                path=converted_sheets_folder,  # Caminho atualizado para a pasta de XMLs convertidos
+                total_generated_xmls=len(xmls),
+                converted_date=datetime.now(),
             )
             db.session.add(new_converted_spreadsheet)
 
-            # Atualiza o status da planilha na tabela Events para CONVERTIDO
+            # Atualiza o status da spreadsheet na tabela Events para CONVERTIDO
             spreadsheet.status = FileStatus.CONVERTIDO  # Atualiza o status para 'CONVERTIDO'
             db.session.add(spreadsheet)
 
             db.session.commit()  # Salva todas as referências
 
-            logger.info("Processamento da planilha %s concluído com sucesso.", spreadsheet_id)
+            logger.info("Processamento da spreadsheet %s concluído com sucesso.", spreadsheet_id)
             return {"message": "Processamento concluído com sucesso"}, 200
 
         except ValueError as ve:
             logger.error("Erro de valor: %s", str(ve))
             return {"message": str(ve)}, 400
         except Exception as e:
-            logger.error("Erro ao processar a planilha: %s", str(e))
-            return {"message": "Erro ao processar a planilha"}, 500
+            logger.error("Erro ao processar a spreadsheet: %s", str(e))
+            return {"message": "Erro ao processar a spreadsheet"}, 500

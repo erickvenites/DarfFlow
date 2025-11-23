@@ -7,6 +7,8 @@ class Config:
     """Configurações base para todos os ambientes"""
     SECRET_KEY = os.getenv('SECRET_KEY')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MAX_CONTENT_LENGTH = 16 * 1000 * 1000  # Limite de 16 MB para uploads
+    ENDPOINT_URL = os.getenv('ENDPOINT_URL')
 
 class DevelopmentConfig(Config):
     """Configurações específicas para desenvolvimento"""

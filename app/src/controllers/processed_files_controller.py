@@ -9,7 +9,7 @@ from typing import Tuple
 processed_service = ProcessedFilesService()
 
 # Define o blueprint com prefixo de URL para os endpoints de arquivos processados
-processed_bp = Blueprint("processed_bp", __name__, url_prefix='/api/arquivos-processados')
+processed_bp = Blueprint("processed_bp", __name__, url_prefix='/api/processed-files')
 
 
 @processed_bp.route("/download", methods=["POST"])
@@ -17,7 +17,7 @@ processed_bp = Blueprint("processed_bp", __name__, url_prefix='/api/arquivos-pro
 def download() -> Tuple[dict, int]:
     """
     Permite o download de todos os arquivos XML de um diretório específico, 
-    com base no ID do arquivo enviado na requisição.
+    com base no ID do file enviado na requisição.
 
     Args:
         None
@@ -47,11 +47,11 @@ def download() -> Tuple[dict, int]:
     return send_file(zip_file_path, as_attachment=True)
 
 
-@processed_bp.route("/listar", methods=["GET"])
+@processed_bp.route("/list", methods=["GET"])
 @verify_token
 def list_all() -> Tuple[dict, int]:
     """
-    Lista os diretórios disponíveis para uma combinação específica de OM, ano e evento.
+    Lista os diretórios disponíveis para uma combinação específica de OM, year e event.
 
     Args:
         None
@@ -60,26 +60,26 @@ def list_all() -> Tuple[dict, int]:
         dict: Lista de diretórios disponíveis.
         int: Código HTTP associado à resposta.
     """
-    om = request.args.get("om").upper()
-    year = request.args.get("ano")
-    event = request.args.get("evento")
+    company_id = request.args.get("company_id").upper()
+    year = request.args.get("year")
+    event = request.args.get("event")
 
-    if not om or not year or not event:
+    if not company_id or not year or not event:
         logger.warning(
-            "Parâmetros obrigatórios ausentes: OM: %s, Ano: %s, Evento: %s",
-            om,
+            "Parâmetros obrigatórios ausentes: company_id: %s, Ano: %s, Evento: %s",
+            company_id,
             year,
             event,
         )
-        return respond_with_error("OM, ano e evento são obrigatórios", 400)
+        return respond_with_error("company_id, year e event são obrigatórios", 400)
 
     response, status_code = processed_service.list_all(
-        om=om, year=year, event=event
+        company_id=company_id, year=year, event=event
     )
 
     logger.info(
-        "Diretórios listados: OM: %s, Ano: %s, Código do Evento: %s, Resposta: %s",
-        om,
+        "Diretórios listados: company_id: %s, Ano: %s, Código do Evento: %s, Resposta: %s",
+        company_id,
         year,
         event,
         response,
@@ -91,13 +91,13 @@ def list_all() -> Tuple[dict, int]:
 @verify_token
 def list_by_id() -> Tuple[dict, int]:
     """
-    Busca um arquivo processado específico pelo ID.
+    Busca um file processado específico pelo ID.
 
     Args:
         None
 
     Returns:
-        dict: Detalhes do arquivo processado.
+        dict: Detalhes do file processado.
         int: Código HTTP associado à resposta.
     """
     file_id = request.args.get("arquivo_id")
@@ -116,7 +116,7 @@ def list_by_id() -> Tuple[dict, int]:
         
         return jsonify(response), status_code
     except Exception as e:
-        logger.error(f"Erro ao buscar arquivo: {str(e)}")
+        logger.error(f"Erro ao buscar file: {str(e)}")
         return jsonify({"message": "Erro interno do servidor."}), 500
 
 

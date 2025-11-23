@@ -1,6 +1,6 @@
 import os
 
-# Verifica se a extensão da planilha enviada tem xlsx
+# Verifica se a extensão da spreadsheet enviada tem xlsx
 def allowed_file_xlsx(filename):
     ALLOWED_EXTENSIONS = {'xlsx'}  # Defina as extensões permitidas
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -15,7 +15,7 @@ def list_files(directory):
     return files
 
 
-# Verifica se a extensão da planilha enviada tem xlsx
+# Verifica se a extensão da spreadsheet enviada tem xlsx
 def allowed_file_zip(filename):
     ALLOWED_EXTENSIONS = {'zip'}  # Defina as extensões permitidas
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

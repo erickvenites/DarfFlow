@@ -17,10 +17,13 @@ ENV https_proxy=$HTTPS_PROXY
 
 
 # Instale as dependências Python especificadas no requirements.txt usando o proxy
-RUN pip3 install --proxy=$HTTP_PROXY -r requirements.txt
+RUN pip3 install --proxy=$HTTP_PROXY --no-cache-dir -r requirements.txt
+
+# Torne o script de entrada executável
+RUN chmod +x docker-entrypoint.sh
 
 # Exponha a porta
 EXPOSE 5000
 
 # Comando padrão para executar a aplicação quando o contêiner for iniciado
-CMD ["python3", "./run.py"]
+CMD ["./docker-entrypoint.sh"]

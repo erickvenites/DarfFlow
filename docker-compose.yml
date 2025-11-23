@@ -1,11 +1,9 @@
-version: "3.8"
 services:
 
   postgres:
-    image: postgres
-    container_name: postgres-dev
+    image: postgres:18
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - ./postgres-data:/var/lib/postgresql
       - ./backup_db:/backup_db
     ports:
       - "8001:5432"
@@ -13,13 +11,19 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  flask:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "5000:5000"
     volumes:
@@ -32,7 +36,8 @@ services:
       - DEV_DATABASE_URL=${DEV_DATABASE_URL}
       - SECRET_KEY=${SECRET_KEY}
       - ENDPOINT_URL=${ENDPOINT_URL}
-
+    env_file:
+      - .env
 
 volumes:
   postgres-data:
