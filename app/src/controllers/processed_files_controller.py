@@ -64,14 +64,9 @@ def list_all() -> Tuple[dict, int]:
     year = request.args.get("year")
     event = request.args.get("event")
 
-    if not company_id or not year or not event:
-        logger.warning(
-            "Parâmetros obrigatórios ausentes: company_id: %s, Ano: %s, Evento: %s",
-            company_id,
-            year,
-            event,
-        )
-        return respond_with_error("company_id, year e event são obrigatórios", 400)
+    if not company_id:
+        logger.warning("Parâmetro obrigatório ausente: company_id")
+        return respond_with_error("company_id é obrigatório", 400)
 
     response, status_code = processed_service.list_all(
         company_id=company_id, year=year, event=event

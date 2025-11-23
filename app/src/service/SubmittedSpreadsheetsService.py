@@ -70,6 +70,11 @@ class SubmittedSpreadsheetsService:
             logger.warning("Extensão de file não permitida: %s", filename)
             return {"message": "Extensão de file não permitida"}, 400
 
+        # Detecta o tipo do arquivo pela extensão
+        file_extension = os.path.splitext(filename)[1].lower().replace('.', '')
+        if not file_extension:
+            file_extension = "xlsx"  # Default para xlsx se não conseguir detectar
+
         # Caminho do diretório
         folder_path = os.path.join(self.RECEIVED_FOLDER, company_id, event, current_year)
 
@@ -95,7 +100,7 @@ class SubmittedSpreadsheetsService:
                 company_id=company_id,
                 event=event,
                 filename=filename,
-                tipo="xlsx",
+                file_type=file_extension,
                 status=FileStatus.RECEBIDO,
                 path=file_path,
             )
@@ -104,12 +109,7 @@ class SubmittedSpreadsheetsService:
 
             logger.info("Arquivo %s processado com sucesso", filename)
 
-            # Obter total de linhas da spreadsheet
-            total_rows = self.get_total_rows(file_path)
-            new_spreadsheet.total_linhas = total_rows
-            db.session.commit()
-
-            return {"message": "Arquivo salvo com sucesso"}, 201
+            return {"message": "Arquivo salvo com sucesso", "spreadsheet_id": str(new_spreadsheet.id)}, 201
         except SQLAlchemyError as e:
             db.session.rollback()
             logger.error("Erro ao salvar no banco: %s", str(e))

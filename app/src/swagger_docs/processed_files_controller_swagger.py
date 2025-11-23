@@ -19,51 +19,57 @@ processed_service = ProcessedFilesService()
 
 @ns_processed.route('/list')
 class ProcessedFileList(Resource):
-    @ns_processed.doc('list_processed_files', security='Bearer')
+    @ns_processed.doc('list_processed_files')
     @ns_processed.expect(list_processed_parser)
     @ns_processed.response(200, 'Arquivos listados com sucesso', [processed_file_model])
     @ns_processed.response(400, 'Parâmetros inválidos', error_model)
     @ns_processed.response(500, 'Erro interno', error_model)
-    @verify_token
     def get(self):
         """
         Lista todos os diretórios de XMLs processados
-        
-        Retorna uma lista de todos os diretórios contendo XMLs processados
-        para uma combinação específica de empresa, ano e evento.
+
+        Pode listar todos ou filtrar por empresa, ano e evento.
+        Filtros são opcionais.
         """
         args = list_processed_parser.parse_args()
-        company_id = args['company_id'].upper()
-        year = args['year']
-        event = args['event']
+        company_id = args.get('company_id')
+        year = args.get('year')
+        event = args.get('event')
 
-        if not company_id or not year or not event:
-            logger.warning(
-                "Parâmetros obrigatórios ausentes: company_id: %s, Ano: %s, Evento: %s",
+        # Se não tem filtros, lista todos
+        if not company_id and not year and not event:
+            response, status_code = processed_service.list_all_without_filters()
+            return response, status_code
+
+        # Se tem apenas company_id, filtra apenas por empresa
+        if company_id and not year and not event:
+            response, status_code = processed_service.list_by_company(company_id.upper())
+            logger.info("Arquivos listados para company_id: %s", company_id)
+            return response, status_code
+
+        # Se tem todos os filtros, usa a busca completa
+        if company_id and year and event:
+            response, status_code = processed_service.list_all(
+                company_id=company_id.upper(), year=year, event=event
+            )
+            logger.info(
+                "Diretórios listados: company_id: %s, Ano: %s, Código do Evento: %s",
                 company_id, year, event
             )
-            return {"message": "company_id, year e event são obrigatórios"}, 400
+            return response, status_code
 
-        response, status_code = processed_service.list_all(
-            company_id=company_id, year=year, event=event
-        )
-
-        logger.info(
-            "Diretórios listados: company_id: %s, Ano: %s, Código do Evento: %s",
-            company_id, year, event
-        )
-        return response, status_code
+        # Se tem filtros parciais (não todos), retorna erro
+        return {"message": "Use company_id sozinho OU todos os filtros (company_id, year, event)"}, 400
 
 
 @ns_processed.route('')
 class ProcessedFileDetail(Resource):
-    @ns_processed.doc('get_processed_file', security='Bearer')
+    @ns_processed.doc('get_processed_file')
     @ns_processed.expect(file_id_parser)
     @ns_processed.response(200, 'Arquivo encontrado', processed_file_model)
     @ns_processed.response(400, 'ID não fornecido', error_model)
     @ns_processed.response(404, 'Arquivo não encontrado', error_model)
     @ns_processed.response(500, 'Erro interno', error_model)
-    @verify_token
     def get(self):
         """
         Busca um arquivo processado específico pelo ID

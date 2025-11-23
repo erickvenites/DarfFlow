@@ -102,8 +102,8 @@ def get_all() -> Tuple[dict, int]:
         event = request.args.get("event")
         year = request.args.get("year")
 
-        if not validate_parameters([company_id, event, year]):
-            return respond_with_error("OM, event e year são obrigatórios", 400)
+        if not company_id:
+            return respond_with_error("company_id é obrigatório", 400)
 
         # Chama o método de listagem de arquivos ZIP
         response, status_code = signed_service.list_all(company_id=company_id, event=event, year=year)  # Agora recebendo o status_code

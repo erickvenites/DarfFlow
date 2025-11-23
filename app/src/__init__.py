@@ -45,19 +45,15 @@ config = {
 # Carrega configurações apropriadas para o ambiente
 app.config.from_object(config.get(config_name))
 
-# Configuração segura de CORS
-allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
-
-CORS(app, resources={
-    r"/api/*": {
-        "origins": allowed_origins,
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "expose_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True,
-        "max_age": 600
-    }
-})
+# Configuração de CORS para desenvolvimento (permite localhost:5173 e localhost:3000)
+CORS(app,
+     origins=["http://localhost:3000", "http://localhost:5173"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+     expose_headers=["Content-Type", "Authorization"],
+     supports_credentials=True,
+     max_age=600
+)
 
 # Inicializa o banco de dados
 db.init_app(app)

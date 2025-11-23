@@ -144,9 +144,9 @@ process_spreadsheet_parser.add_argument('cnpj', type=str, required=True, locatio
 
 # Parser para listar arquivos processados
 list_processed_parser = api.parser()
-list_processed_parser.add_argument('company_id', type=str, required=True, location='args', help='ID da empresa')
-list_processed_parser.add_argument('year', type=str, required=True, location='args', help='Ano de referência')
-list_processed_parser.add_argument('event', type=str, required=True, location='args', help='Código do evento')
+list_processed_parser.add_argument('company_id', type=str, required=False, location='args', help='ID da empresa (opcional)')
+list_processed_parser.add_argument('year', type=str, required=False, location='args', help='Ano de referência (opcional)')
+list_processed_parser.add_argument('event', type=str, required=False, location='args', help='Código do evento (opcional)')
 
 # Parser para buscar/deletar por ID
 file_id_parser = api.parser()
@@ -165,9 +165,9 @@ upload_signed_parser.add_argument('file', type='file', required=True, location='
 
 # Parser para listar arquivos assinados
 list_signed_parser = api.parser()
-list_signed_parser.add_argument('company_id', type=str, required=True, location='args', help='ID da empresa')
-list_signed_parser.add_argument('event', type=str, required=True, location='args', help='Código do evento')
-list_signed_parser.add_argument('year', type=str, required=True, location='args', help='Ano de referência')
+list_signed_parser.add_argument('company_id', type=str, required=False, location='args', help='ID da empresa (opcional)')
+list_signed_parser.add_argument('event', type=str, required=False, location='args', help='Código do evento (opcional)')
+list_signed_parser.add_argument('year', type=str, required=False, location='args', help='Ano de referência (opcional)')
 
 # Parser para assinar XMLs
 sign_xml_parser = api.parser()

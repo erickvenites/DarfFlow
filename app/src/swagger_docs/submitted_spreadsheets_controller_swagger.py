@@ -32,21 +32,25 @@ class SpreadsheetUpload(Resource):
     def post(self):
         """
         Faz upload de uma planilha para processamento
-        
+
         Aceita arquivos Excel (.xlsx, .xls) ou CSV contendo os dados dos eventos.
         A planilha será validada e armazenada para posterior processamento.
         """
         try:
-            args = upload_parser.parse_args()
-            company_id = args['company_id']
-            event = args['event']
-            file = args['spreadsheet']
+            # Usar request diretamente ao invés do parser para evitar erros de parsing
+            company_id = request.args.get('company_id')
+            event = request.args.get('event')
 
             if not company_id or not event:
                 return {"message": "company_id e event são obrigatórios"}, 400
 
-            if not file or file.filename == "":
-                return {"message": "Nenhuma planilha enviada ou selecionada"}, 400
+            if 'spreadsheet' not in request.files:
+                return {"message": "Nenhuma planilha enviada"}, 400
+
+            file = request.files['spreadsheet']
+
+            if file.filename == "":
+                return {"message": "Nenhuma planilha selecionada"}, 400
 
             response_message, status_code = received_service.process_upload(file, company_id, event)
             return response_message, status_code
@@ -95,20 +99,20 @@ class SpreadsheetDownload(Resource):
 
 @ns_spreadsheets.route('/')
 class SpreadsheetList(Resource):
-    @ns_spreadsheets.doc('get_spreadsheets', security='Bearer')
+    @ns_spreadsheets.doc('get_spreadsheets')
     @ns_spreadsheets.expect(get_spreadsheets_parser)
     @ns_spreadsheets.response(200, 'Planilhas encontradas', [spreadsheet_model])
     @ns_spreadsheets.response(400, 'Parâmetros inválidos', error_model)
     @ns_spreadsheets.response(404, 'Planilha não encontrada', error_model)
     @ns_spreadsheets.response(500, 'Erro interno', error_model)
-    @verify_token
     def get(self):
         """
-        Busca planilhas por ID específico ou por filtros
-        
-        Dois modos de operação:
+        Busca planilhas por ID específico, por filtros, ou lista todas
+
+        Três modos de operação:
         - Com spreadsheet_id: retorna uma planilha específica
-        - Com company_id, year e event: retorna todas as planilhas que correspondem aos filtros
+        - Com company_id, year e event: retorna planilhas filtradas
+        - Sem parâmetros: retorna todas as planilhas
         """
         args = get_spreadsheets_parser.parse_args()
         spreadsheet_id = args.get('spreadsheet_id')
@@ -122,25 +126,26 @@ class SpreadsheetList(Resource):
                 logger.error(f"Erro ao buscar spreadsheet por ID: {str(e)}")
                 return {"message": "Erro interno do servidor."}, 500
 
-        # Busca com filtros
+        # Busca com filtros ou todas
         company_id = args.get('company_id')
         year = args.get('year')
         event = args.get('event')
 
-        if not company_id or not year or not event:
-            return {
-                "message": "Forneça 'spreadsheet_id' para buscar uma spreadsheet específica, "
-                          "ou 'company_id', 'year' e 'event' para buscar múltiplas planilhas."
-            }, 400
-
         try:
-            filters = [
-                EventSpreadsheet.company_id == company_id.upper(),
-                db.extract('year', EventSpreadsheet.received_date) == int(year),
-                EventSpreadsheet.event == event
-            ]
+            # Se não tem nenhum parâmetro, retorna todas
+            if not company_id and not year and not event:
+                spreadsheets = EventSpreadsheet.query.order_by(EventSpreadsheet.received_date.desc()).all()
+            else:
+                # Monta filtros dinâmicos
+                filters = []
+                if company_id:
+                    filters.append(EventSpreadsheet.company_id == company_id.upper())
+                if year:
+                    filters.append(db.extract('year', EventSpreadsheet.received_date) == int(year))
+                if event:
+                    filters.append(EventSpreadsheet.event == event)
 
-            spreadsheets = EventSpreadsheet.query.filter(*filters).all()
+                spreadsheets = EventSpreadsheet.query.filter(*filters).order_by(EventSpreadsheet.received_date.desc()).all()
 
             spreadsheets_data = [
                 {
@@ -198,12 +203,11 @@ class SpreadsheetList(Resource):
 
 @ns_spreadsheets.route('/process')
 class SpreadsheetProcess(Resource):
-    @ns_spreadsheets.doc('process_spreadsheet', security='Bearer')
+    @ns_spreadsheets.doc('process_spreadsheet')
     @ns_spreadsheets.expect(process_spreadsheet_parser)
     @ns_spreadsheets.response(200, 'Planilha processada com sucesso')
     @ns_spreadsheets.response(400, 'Parâmetros inválidos', error_model)
     @ns_spreadsheets.response(500, 'Erro no processamento', error_model)
-    @verify_token
     def post(self):
         """
         Processa uma planilha e gera arquivos XML

@@ -86,34 +86,46 @@ class SignedXmlUpload(Resource):
 
 @ns_signed.route('/list')
 class SignedXmlList(Resource):
-    @ns_signed.doc('list_signed_xmls', security='Bearer')
+    @ns_signed.doc('list_signed_xmls')
     @ns_signed.expect(list_signed_parser)
     @ns_signed.response(200, 'Arquivos listados com sucesso', [signed_file_model])
     @ns_signed.response(400, 'Parâmetros inválidos', error_model)
     @ns_signed.response(500, 'Erro interno', error_model)
-    @verify_token
     def get(self):
         """
         Lista todos os arquivos assinados
-        
-        Retorna uma lista de todos os arquivos ZIP contendo XMLs assinados
-        para uma combinação específica de empresa, evento e ano.
+
+        Pode listar todos ou filtrar por empresa, evento e ano.
+        Filtros são opcionais.
         """
         try:
             args = list_signed_parser.parse_args()
-            company_id = args['company_id'].upper()
-            event = args['event']
-            year = args['year']
+            company_id = args.get('company_id')
+            event = args.get('event')
+            year = args.get('year')
 
-            if not company_id or not event or not year:
-                return {"message": "OM, event e year são obrigatórios"}, 400
+            # Se não tem filtros, lista todos
+            if not company_id and not event and not year:
+                response, status_code = signed_service.list_all_without_filters()
+                return response, status_code
 
-            response, status_code = signed_service.list_all(
-                company_id=company_id,
-                event=event,
-                year=year
-            )
-            return response, status_code
+            # Se tem apenas company_id, filtra apenas por empresa
+            if company_id and not event and not year:
+                response, status_code = signed_service.list_by_company(company_id.upper())
+                logger.info("Arquivos assinados listados para company_id: %s", company_id)
+                return response, status_code
+
+            # Se tem todos os filtros, usa a busca completa
+            if company_id and event and year:
+                response, status_code = signed_service.list_all(
+                    company_id=company_id.upper(),
+                    event=event,
+                    year=year
+                )
+                return response, status_code
+
+            # Se tem filtros parciais (não todos), retorna erro
+            return {"message": "Use company_id sozinho OU todos os filtros (company_id, event, year)"}, 400
 
         except Exception as e:
             logger.error("Erro ao listar diretórios: %s", str(e))
@@ -122,13 +134,12 @@ class SignedXmlList(Resource):
 
 @ns_signed.route('')
 class SignedXmlDetail(Resource):
-    @ns_signed.doc('get_signed_xml', security='Bearer')
+    @ns_signed.doc('get_signed_xml')
     @ns_signed.expect(file_id_parser)
     @ns_signed.response(200, 'Arquivo encontrado', signed_file_model)
     @ns_signed.response(400, 'ID não fornecido', error_model)
     @ns_signed.response(404, 'Arquivo não encontrado', error_model)
     @ns_signed.response(500, 'Erro interno', error_model)
-    @verify_token
     def get(self):
         """
         Busca um arquivo assinado pelo ID
@@ -184,13 +195,12 @@ class SignedXmlDetail(Resource):
 
 @ns_signed.route('/sign')
 class XmlSigner(Resource):
-    @ns_signed.doc('sign_xmls', security='Bearer')
+    @ns_signed.doc('sign_xmls')
     @ns_signed.expect(sign_xml_parser)
     @ns_signed.response(200, 'XMLs assinados com sucesso', signature_response_model)
     @ns_signed.response(400, 'Parâmetros inválidos ou status incorreto', error_model)
     @ns_signed.response(404, 'Planilha ou XMLs não encontrados', error_model)
     @ns_signed.response(500, 'Erro ao assinar', error_model)
-    @verify_token
     def post(self):
         """
         Assina digitalmente os arquivos XML de uma planilha

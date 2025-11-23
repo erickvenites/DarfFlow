@@ -30,14 +30,14 @@ class EventSpreadsheet(db.Model):
 
     def to_dict(self):
         return{
-            "id":self.id,
+            "id": str(self.id),
             "company_id": self.company_id,
             "event": self.event,
             "filename": self.filename,
             "file_type": self.file_type,
-            "status": self.status.name,
+            "status": self.status.value,
             "path": self.path,
-            "received_date": self.received_date,
+            "received_date": self.received_date.isoformat() if self.received_date else None,
         }
 
 
@@ -55,16 +55,16 @@ class ConvertedSpreadsheet(db.Model):
 
     def to_dict(self):
             spreadsheet_base = {
-                "spreadsheet_id": self.file.id,
+                "spreadsheet_id": str(self.file.id),
                 "company_id": self.file.company_id,
                 "event": self.file.event,
             }
             return {
                 **spreadsheet_base,
-                "id": self.id,
+                "id": str(self.id),
                 "path": self.path,
                 "total_generated_xmls": self.total_generated_xmls,
-                "converted_date": self.converted_date
+                "converted_date": self.converted_date.isoformat() if self.converted_date else None
             }
 
 
@@ -81,15 +81,15 @@ class SignedXmls(db.Model):
 
     def to_dict(self):
         spreadsheet_base = {
-            "spreadsheet_id": self.converted.file.id,
+            "spreadsheet_id": str(self.converted.file.id),
             "company_id": self.converted.file.company_id,
             "event": self.converted.file.event,
         }
         return {
             **spreadsheet_base,
-            "id": self.id,
+            "id": str(self.id),
             "path": self.path,
-            "signed_date": self.signed_date
+            "signed_date": self.signed_date.isoformat() if self.signed_date else None
         }
 
 
@@ -108,17 +108,17 @@ class XmlsSent(db.Model):
     
     def to_dict(self):
             spreadsheet_base = {
-                "spreadsheet_id": self.signed.converted.file.id,
+                "spreadsheet_id": str(self.signed.converted.file.id),
                 "company_id": self.signed.converted.file.company_id,
                 "event": self.signed.converted.file.event,
-                "status": self.signed.converted.file.status.name
+                "status": self.signed.converted.file.status.value
             }
             return {
                 **spreadsheet_base,
-                "sent_id": self.id,
+                "sent_id": str(self.id),
                 "path": self.path,
-                "send_status": self.send_status.name,
-                "sent_date": self.sent_date
+                "send_status": self.send_status,
+                "sent_date": self.sent_date.isoformat() if self.sent_date else None
             }
 
 class ShippingResponse(db.Model):
@@ -131,16 +131,16 @@ class ShippingResponse(db.Model):
 
     def to_dict(self):
         spreadsheet_base = {
-            "spreadsheet_id": self.sent.signed.converted.file.id,
+            "spreadsheet_id": str(self.sent.signed.converted.file.id),
             "company_id": self.sent.signed.converted.file.company_id,
             "event": self.sent.signed.converted.file.event,
-            "status": self.sent.signed.converted.file.status.name
+            "status": self.sent.signed.converted.file.status.value
         }
         return {
             **spreadsheet_base,
-            "response_id": self.id,
+            "response_id": str(self.id),
             "path": self.path,
-            "response_date": self.response_date
+            "response_date": self.response_date.isoformat() if self.response_date else None
         }
 
 # Index definitions

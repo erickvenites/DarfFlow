@@ -118,6 +118,96 @@ class ReceivingSignedXmlFilesService:
             logger.error(f"Erro inesperado ao listar diretórios: {e}")
             return {"message": "Erro ao listar diretórios"}, 500
 
+    def list_all_without_filters(self) -> dict:
+        """
+        Lista TODOS os arquivos XML assinados sem filtros.
+
+        Returns:
+            dict: Resposta com todos os arquivos XML assinados ou lista vazia.
+        """
+        try:
+            # Buscar todos os XMLs assinados
+            signed_xmls = db.session.query(SignedXmls).all()
+
+            if not signed_xmls:
+                logger.info("Nenhum arquivo XML assinado encontrado")
+                return {"data": []}, 200
+
+            # Construir resultado com informações completas
+            result_data = []
+            for signed in signed_xmls:
+                try:
+                    # Obter informações da planilha associada
+                    event_spreadsheet = (
+                        db.session.query(EventSpreadsheet)
+                        .join(ConvertedSpreadsheet)
+                        .filter(ConvertedSpreadsheet.id == signed.converted_spreadsheet_id)
+                        .first()
+                    )
+
+                    signed_dict = signed.to_dict()
+                    if event_spreadsheet:
+                        signed_dict["event"] = event_spreadsheet.event
+                        signed_dict["company_id"] = event_spreadsheet.company_id
+
+                    result_data.append(signed_dict)
+                except Exception as e:
+                    logger.warning(f"Erro ao processar XML assinado ID {signed.id}: {e}")
+                    continue
+
+            logger.info(f"Encontrados {len(result_data)} arquivos XML assinados")
+            return {"data": result_data}, 200
+
+        except SQLAlchemyError as e:
+            logger.error(f"Erro ao consultar banco de dados: {e}")
+            return {"message": "Erro interno no servidor"}, 500
+        except Exception as e:
+            logger.error(f"Erro inesperado ao listar XMLs assinados: {e}")
+            return {"message": "Erro ao listar XMLs assinados"}, 500
+
+    def list_by_company(self, company_id: str) -> dict:
+        """
+        Lista todos os arquivos XML assinados de uma empresa específica.
+
+        Args:
+            company_id (str): Identificador da empresa.
+
+        Returns:
+            dict: Resposta com os arquivos da empresa ou lista vazia.
+        """
+        try:
+            # Busca XMLs assinados da empresa
+            signed_xmls = (
+                db.session.query(SignedXmls)
+                .join(ConvertedSpreadsheet, SignedXmls.converted_spreadsheet_id == ConvertedSpreadsheet.id)
+                .join(EventSpreadsheet, ConvertedSpreadsheet.spreadsheet_id == EventSpreadsheet.id)
+                .filter(EventSpreadsheet.company_id == company_id)
+                .all()
+            )
+
+            if not signed_xmls:
+                logger.info(f"Nenhum arquivo XML assinado encontrado para {company_id}")
+                return {"data": []}, 200
+
+            result_data = []
+            for signed in signed_xmls:
+                try:
+                    signed_dict = signed.to_dict()
+                    result_data.append(signed_dict)
+                except Exception as e:
+                    logger.warning(f"Erro ao processar XML assinado ID {signed.id}: {e}")
+                    continue
+
+            logger.info(f"Encontrados {len(result_data)} arquivos XML assinados para {company_id}")
+            return {"data": result_data}, 200
+
+        except SQLAlchemyError as e:
+            logger.error(f"Erro ao consultar banco de dados: {e}")
+            return {"message": "Erro interno no servidor"}, 500
+        except Exception as e:
+            logger.error(f"Erro inesperado ao listar XMLs assinados: {e}")
+            return {"message": "Erro ao listar XMLs assinados"}, 500
+
     def list_by_id(self, file_id: int) -> dict:
         """
         Lista um file XML assinado pelo ID.

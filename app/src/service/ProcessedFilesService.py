@@ -135,6 +135,78 @@ class ProcessedFilesService:
             logger.error(f"Erro inesperado ao listar diretórios: {e}")
             return {"message": "Erro ao listar diretórios"}, 500
 
+    def list_all_without_filters(self) -> Tuple[Dict[str, Any], int]:
+        """
+        Lista TODAS as planilhas convertidas sem filtros.
+
+        Returns:
+            Tuple[Dict[str, Any], int]: Lista com todas as planilhas convertidas e código HTTP.
+        """
+        try:
+            # Busca todas as planilhas convertidas
+            converted_spreadsheets = db.session.query(ConvertedSpreadsheet).join(
+                EventSpreadsheet,
+                ConvertedSpreadsheet.spreadsheet_id == EventSpreadsheet.id
+            ).filter(
+                EventSpreadsheet.status == FileStatus.CONVERTIDO
+            ).order_by(ConvertedSpreadsheet.converted_date.desc()).all()
+
+            if not converted_spreadsheets:
+                logger.info("Nenhuma planilha convertida encontrada")
+                return {"data": []}, 200
+
+            result = {
+                "data": [cs.to_dict() for cs in converted_spreadsheets]
+            }
+
+            logger.info(f"Encontradas {len(converted_spreadsheets)} planilhas convertidas")
+            return result, 200
+
+        except SQLAlchemyError as e:
+            logger.error(f"Erro ao consultar banco de dados: {e}")
+            return {"message": "Erro interno no servidor"}, 500
+        except Exception as e:
+            logger.error(f"Erro inesperado: {e}")
+            return {"message": "Erro ao listar planilhas convertidas"}, 500
+
+    def list_by_company(self, company_id: str) -> Tuple[Dict[str, Any], int]:
+        """
+        Lista todas as planilhas convertidas de uma empresa específica.
+
+        Args:
+            company_id (str): Identificador da empresa.
+
+        Returns:
+            Tuple[Dict[str, Any], int]: Lista com as planilhas da empresa e código HTTP.
+        """
+        try:
+            # Busca planilhas convertidas da empresa
+            converted_spreadsheets = db.session.query(ConvertedSpreadsheet).join(
+                EventSpreadsheet,
+                ConvertedSpreadsheet.spreadsheet_id == EventSpreadsheet.id
+            ).filter(
+                EventSpreadsheet.company_id == company_id,
+                EventSpreadsheet.status == FileStatus.CONVERTIDO
+            ).order_by(ConvertedSpreadsheet.converted_date.desc()).all()
+
+            if not converted_spreadsheets:
+                logger.info(f"Nenhuma planilha convertida encontrada para {company_id}")
+                return {"data": []}, 200
+
+            result = {
+                "data": [cs.to_dict() for cs in converted_spreadsheets]
+            }
+
+            logger.info(f"Encontradas {len(converted_spreadsheets)} planilhas convertidas para {company_id}")
+            return result, 200
+
+        except SQLAlchemyError as e:
+            logger.error(f"Erro ao consultar banco de dados: {e}")
+            return {"message": "Erro interno no servidor"}, 500
+        except Exception as e:
+            logger.error(f"Erro inesperado ao listar planilhas convertidas: {e}")
+            return {"message": "Erro ao listar planilhas convertidas"}, 500
+
     def get_by_id(self, file_id: int) -> Tuple[Dict[str, Any], int]:
         """
         Recupera os detalhes de uma spreadsheet convertida específica pelo seu ID.
