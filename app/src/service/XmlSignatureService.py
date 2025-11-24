@@ -178,14 +178,20 @@ class XmlSignatureService:
             # Parse do XML
             root = etree.fromstring(xml_content.encode('utf-8'))
 
-            # Encontra o elemento do event a ser assinado
-            # Namespace do EFD-Reinf
-            namespaces = {
-                'evt': 'http://www.reinf.esocial.gov.br/schemas/evt' + event_type + 'v2_01_02'
-            }
+            # Extrai o namespace real do XML
+            # O namespace está no elemento raiz <Reinf>
+            namespace = root.nsmap.get(None)  # None = default namespace
 
             # Tenta encontrar o elemento do event
-            event_element = root.find(f".//{event_tag}")
+            # Se houver namespace, usa busca com namespace
+            if namespace:
+                # Busca com namespace
+                event_element = root.find(f".//{{{namespace}}}{event_tag}")
+                logger.info(f"Buscando elemento {event_tag} com namespace: {namespace}")
+            else:
+                # Busca sem namespace (fallback)
+                event_element = root.find(f".//{event_tag}")
+                logger.info(f"Buscando elemento {event_tag} sem namespace")
 
             if event_element is None:
                 raise ValueError(f"Elemento {event_tag} não encontrado no XML")
@@ -212,13 +218,17 @@ class XmlSignatureService:
                 reference_uri=f"#{event_element.get('Id') or event_element.get('id')}"
             )
 
-            # Converte para string
-            signed_xml = etree.tostring(
+            # Converte para string com declaração XML (minificado)
+            # pretty_print=False para evitar alterações no arquivo após assinatura
+            signed_xml_bytes = etree.tostring(
                 signed_root,
-                encoding='unicode',
+                encoding='utf-8',
                 xml_declaration=True,
-                pretty_print=True
+                pretty_print=False
             )
+
+            # Decodifica bytes para string
+            signed_xml = signed_xml_bytes.decode('utf-8')
 
             logger.info(f"XML do event {event_type} assinado com sucesso")
             return signed_xml

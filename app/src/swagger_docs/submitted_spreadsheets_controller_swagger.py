@@ -39,10 +39,15 @@ class SpreadsheetUpload(Resource):
         try:
             # Usar request diretamente ao invés do parser para evitar erros de parsing
             company_id = request.args.get('company_id')
+            cnpj = request.args.get('cnpj')
             event = request.args.get('event')
 
-            if not company_id or not event:
-                return {"message": "company_id e event são obrigatórios"}, 400
+            if not company_id or not cnpj or not event:
+                return {"message": "company_id, cnpj e event são obrigatórios"}, 400
+
+            # Valida formato do CNPJ (14 dígitos)
+            if not cnpj.isdigit() or len(cnpj) != 14:
+                return {"message": "CNPJ deve conter exatamente 14 dígitos numéricos"}, 400
 
             if 'spreadsheet' not in request.files:
                 return {"message": "Nenhuma planilha enviada"}, 400
@@ -52,7 +57,7 @@ class SpreadsheetUpload(Resource):
             if file.filename == "":
                 return {"message": "Nenhuma planilha selecionada"}, 400
 
-            response_message, status_code = received_service.process_upload(file, company_id, event)
+            response_message, status_code = received_service.process_upload(file, company_id, cnpj, event)
             return response_message, status_code
 
         except Exception as e:
@@ -151,6 +156,7 @@ class SpreadsheetList(Resource):
                 {
                     "id": str(spreadsheet.id),
                     "company_id": spreadsheet.company_id,
+                    "cnpj": spreadsheet.cnpj,
                     "event": spreadsheet.event,
                     "filename": spreadsheet.filename,
                     "file_type": spreadsheet.file_type,

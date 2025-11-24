@@ -280,6 +280,14 @@ class XmlSigner(Resource):
                     with open(signed_path, 'w', encoding='utf-8') as f:
                         f.write(signed_xml)
 
+                    # Cria registro no banco de dados
+                    from src.models.database import SignedXmls
+                    signed_record = SignedXmls(
+                        converted_spreadsheet_id=converted.id,
+                        path=signed_path
+                    )
+                    db.session.add(signed_record)
+
                     signed_count += 1
                     logger.info(f"XML assinado com sucesso: {filename}")
 

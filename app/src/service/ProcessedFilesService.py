@@ -83,6 +83,7 @@ class ProcessedFilesService:
         """
         try:
             # Obtém todas as planilhas convertidas para a empresa/event/year
+            # Inclui planilhas com status CONVERTIDO ou ASSINADO
             converted_spreadsheets = db.session.query(ConvertedSpreadsheet).join(
                 EventSpreadsheet,
                 ConvertedSpreadsheet.spreadsheet_id == EventSpreadsheet.id
@@ -90,7 +91,7 @@ class ProcessedFilesService:
                 EventSpreadsheet.company_id == company_id,
                 EventSpreadsheet.event == event,
                 extract('year', EventSpreadsheet.received_date) == year,
-                EventSpreadsheet.status == FileStatus.CONVERTIDO
+                EventSpreadsheet.status.in_([FileStatus.CONVERTIDO, FileStatus.ASSINADO])
             ).all()
 
             if not converted_spreadsheets:
@@ -138,17 +139,18 @@ class ProcessedFilesService:
     def list_all_without_filters(self) -> Tuple[Dict[str, Any], int]:
         """
         Lista TODAS as planilhas convertidas sem filtros.
+        Inclui planilhas com status CONVERTIDO ou ASSINADO.
 
         Returns:
             Tuple[Dict[str, Any], int]: Lista com todas as planilhas convertidas e código HTTP.
         """
         try:
-            # Busca todas as planilhas convertidas
+            # Busca todas as planilhas convertidas (inclui CONVERTIDO e ASSINADO)
             converted_spreadsheets = db.session.query(ConvertedSpreadsheet).join(
                 EventSpreadsheet,
                 ConvertedSpreadsheet.spreadsheet_id == EventSpreadsheet.id
             ).filter(
-                EventSpreadsheet.status == FileStatus.CONVERTIDO
+                EventSpreadsheet.status.in_([FileStatus.CONVERTIDO, FileStatus.ASSINADO])
             ).order_by(ConvertedSpreadsheet.converted_date.desc()).all()
 
             if not converted_spreadsheets:
@@ -172,6 +174,7 @@ class ProcessedFilesService:
     def list_by_company(self, company_id: str) -> Tuple[Dict[str, Any], int]:
         """
         Lista todas as planilhas convertidas de uma empresa específica.
+        Inclui planilhas com status CONVERTIDO ou ASSINADO.
 
         Args:
             company_id (str): Identificador da empresa.
@@ -180,13 +183,13 @@ class ProcessedFilesService:
             Tuple[Dict[str, Any], int]: Lista com as planilhas da empresa e código HTTP.
         """
         try:
-            # Busca planilhas convertidas da empresa
+            # Busca planilhas convertidas da empresa (inclui CONVERTIDO e ASSINADO)
             converted_spreadsheets = db.session.query(ConvertedSpreadsheet).join(
                 EventSpreadsheet,
                 ConvertedSpreadsheet.spreadsheet_id == EventSpreadsheet.id
             ).filter(
                 EventSpreadsheet.company_id == company_id,
-                EventSpreadsheet.status == FileStatus.CONVERTIDO
+                EventSpreadsheet.status.in_([FileStatus.CONVERTIDO, FileStatus.ASSINADO])
             ).order_by(ConvertedSpreadsheet.converted_date.desc()).all()
 
             if not converted_spreadsheets:

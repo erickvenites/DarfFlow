@@ -43,6 +43,7 @@ ns_health = api.namespace('health', description='Monitoramento de saúde da apli
 ns_spreadsheets = api.namespace('spreadsheets', description='Operações com planilhas submetidas')
 ns_processed = api.namespace('processed-files', description='Gestão de XMLs processados')
 ns_signed = api.namespace('signed', description='Gestão de XMLs assinados')
+ns_batches = api.namespace('batches', description='Gestão de lotes para envio ao REINF')
 
 # ============= MODELOS DE DADOS =============
 
@@ -119,6 +120,7 @@ error_model = api.model('Error', {
 # Parser para upload de planilha
 upload_parser = api.parser()
 upload_parser.add_argument('company_id', type=str, required=True, location='args', help='ID da empresa (OM)')
+upload_parser.add_argument('cnpj', type=str, required=True, location='args', help='CNPJ da empresa (14 dígitos)')
 upload_parser.add_argument('event', type=str, required=True, location='args', help='Código do evento eSocial (ex: 4020)')
 upload_parser.add_argument('spreadsheet', type='file', required=True, location='files', help='Arquivo da planilha (Excel ou CSV)')
 
@@ -182,3 +184,56 @@ send_events_parser.add_argument('event', type=str, required=True, location='args
 send_events_parser.add_argument('spreadsheet_id', type=str, required=True, location='args', help='ID da planilha')
 send_events_parser.add_argument('cnpj', type=str, required=True, location='args', help='CNPJ da empresa')
 send_events_parser.add_argument('year', type=str, required=True, location='args', help='Ano de referência')
+# ============= LOTES (BATCHES) =============
+
+# Modelos para Lotes
+batch_model = api.model('Batch', {
+    'id': fields.String(description='ID do lote'),
+    'spreadsheet_id': fields.String(description='ID da planilha'),
+    'company_id': fields.String(description='ID da empresa'),
+    'event': fields.String(description='Código do evento'),
+    'status': fields.String(description='Status do lote', enum=['Criado', 'Enviado', 'Processando', 'Processado', 'Erro']),
+    'protocol_number': fields.String(description='Número de protocolo do REINF'),
+    'batch_xml_path': fields.String(description='Caminho do XML do lote'),
+    'xml_count': fields.Integer(description='Quantidade de XMLs no lote'),
+    'created_date': fields.DateTime(description='Data de criação'),
+    'sent_date': fields.DateTime(description='Data de envio')
+})
+
+batch_create_response_model = api.model('BatchCreateResponse', {
+    'message': fields.String(description='Mensagem de status'),
+    'total_batches': fields.Integer(description='Total de lotes criados'),
+    'batches': fields.List(fields.Nested(api.model('BatchCreated', {
+        'batch_id': fields.String(description='ID do lote'),
+        'xml_count': fields.Integer(description='Quantidade de XMLs'),
+        'batch_xml_path': fields.String(description='Caminho do XML do lote')
+    })))
+})
+
+batch_send_response_model = api.model('BatchSendResponse', {
+    'message': fields.String(description='Mensagem de status'),
+    'protocol_number': fields.String(description='Número de protocolo'),
+    'batch_id': fields.String(description='ID do lote'),
+    'status': fields.String(description='Status atualizado')
+})
+
+batch_query_response_model = api.model('BatchQueryResponse', {
+    'batch_id': fields.String(description='ID do lote'),
+    'protocol_number': fields.String(description='Número de protocolo'),
+    'batch_status': fields.String(description='Status do lote'),
+    'reinf_response': fields.Raw(description='Resposta do REINF')
+})
+
+# Parsers para Lotes
+create_batch_parser = api.parser()
+create_batch_parser.add_argument('converted_spreadsheet_id', type=str, required=True, location='args', help='ID da planilha convertida')
+
+batch_id_parser = api.parser()
+batch_id_parser.add_argument('batch_id', type=str, required=True, location='args', help='ID do lote')
+
+list_batches_parser = api.parser()
+list_batches_parser.add_argument('converted_spreadsheet_id', type=str, required=False, location='args', help='ID da planilha convertida')
+
+send_batch_parser = api.parser()
+send_batch_parser.add_argument('batch_id', type=str, required=True, location='args', help='ID do lote')
+send_batch_parser.add_argument('environment', type=str, required=False, location='args', help='Ambiente (producao ou homologacao)', default='homologacao')

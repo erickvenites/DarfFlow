@@ -66,6 +66,7 @@ import src.swagger_docs.health_controller_swagger
 import src.swagger_docs.submitted_spreadsheets_controller_swagger
 import src.swagger_docs.processed_files_controller_swagger
 import src.swagger_docs.receiving_signed_xml_files_controller_swagger
+import src.swagger_docs.batch_controller_swagger
 
 # Registra o blueprint do Swagger
 app.register_blueprint(api_bp, url_prefix='/api')

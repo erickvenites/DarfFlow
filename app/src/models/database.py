@@ -11,12 +11,21 @@ class FileStatus(enum.Enum):
     ASSINADO = 'Assinado'
     ENVIADO = 'Enviado'
 
+# Enum para status do lote
+class BatchStatus(enum.Enum):
+    CRIADO = 'Criado'
+    ENVIADO = 'Enviado'
+    PROCESSANDO = 'Processando'
+    PROCESSADO = 'Processado'
+    ERRO = 'Erro'
+
 
 class EventSpreadsheet(db.Model):
     __tablename__ = "tb_spreadsheets"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id = db.Column(db.String(50), nullable=False)  # Company identifier (CNPJ, code, etc)
+    company_id = db.Column(db.String(50), nullable=False)  # Company identifier (code, name, etc)
+    cnpj = db.Column(db.String(14), nullable=True)  # CNPJ da empresa (14 dígitos)
     event = db.Column(db.String(255), nullable=False)  # EFD-Reinf Event Code Ex.: 4020, 2010, etc
     filename = db.Column(db.String(255), nullable=False)  # Spreadsheet filename
     file_type = db.Column(db.String(255), nullable=False)  # File format (xlsx, xml)
@@ -32,6 +41,7 @@ class EventSpreadsheet(db.Model):
         return{
             "id": str(self.id),
             "company_id": self.company_id,
+            "cnpj": self.cnpj,
             "event": self.event,
             "filename": self.filename,
             "file_type": self.file_type,
@@ -51,7 +61,8 @@ class ConvertedSpreadsheet(db.Model):
     converted_date = db.Column(db.DateTime, nullable=False, default=func.now())
 
     # Relationship
-    signed_files = db.relationship('SignedXmls', backref="converted", lazy='dynamic')
+    signed_files = db.relationship('SignedXmls', backref="converted", lazy='dynamic', foreign_keys='SignedXmls.converted_spreadsheet_id')
+    batches = db.relationship('Batch', backref="converted", lazy='dynamic')
 
     def to_dict(self):
             spreadsheet_base = {
@@ -73,6 +84,7 @@ class SignedXmls(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     converted_spreadsheet_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_converted_spreadsheets.id'), nullable=False)  # Reference to converted XML
+    batch_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_batches.id'), nullable=True)  # Reference to batch (optional)
     path = db.Column(db.String(255), nullable=False)
     signed_date = db.Column(db.DateTime, nullable=False, default=func.now())
 
@@ -88,8 +100,44 @@ class SignedXmls(db.Model):
         return {
             **spreadsheet_base,
             "id": str(self.id),
+            "batch_id": str(self.batch_id) if self.batch_id else None,
             "path": self.path,
             "signed_date": self.signed_date.isoformat() if self.signed_date else None
+        }
+
+
+class Batch(db.Model):
+    __tablename__ = "tb_batches"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    converted_spreadsheet_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tb_converted_spreadsheets.id'), nullable=False)  # Reference to converted spreadsheet
+    status = db.Column(db.Enum(BatchStatus), nullable=False, default=BatchStatus.CRIADO)
+    protocol_number = db.Column(db.String(255), nullable=True)  # Número de protocolo do REINF
+    batch_xml_path = db.Column(db.String(255), nullable=True)  # Caminho do XML do lote
+    created_date = db.Column(db.DateTime, nullable=False, default=func.now())
+    sent_date = db.Column(db.DateTime, nullable=True)
+
+    # Relationship
+    signed_xmls = db.relationship('SignedXmls', backref="batch", lazy='dynamic', foreign_keys='SignedXmls.batch_id')
+
+    def to_dict(self):
+        spreadsheet_base = {
+            "spreadsheet_id": str(self.converted.file.id),
+            "company_id": self.converted.file.company_id,
+            "event": self.converted.file.event,
+        }
+        # Count signed XMLs in this batch
+        xml_count = self.signed_xmls.count() if self.signed_xmls else 0
+
+        return {
+            **spreadsheet_base,
+            "id": str(self.id),
+            "status": self.status.value,
+            "protocol_number": self.protocol_number,
+            "batch_xml_path": self.batch_xml_path,
+            "xml_count": xml_count,
+            "created_date": self.created_date.isoformat() if self.created_date else None,
+            "sent_date": self.sent_date.isoformat() if self.sent_date else None
         }
 
 
@@ -146,5 +194,7 @@ class ShippingResponse(db.Model):
 # Index definitions
 Index('ix_spreadsheet_id_converted', ConvertedSpreadsheet.spreadsheet_id)
 Index('ix_converted_id_signed', SignedXmls.converted_spreadsheet_id)
+Index('ix_converted_id_batch', Batch.converted_spreadsheet_id)
+Index('ix_batch_id_signed', SignedXmls.batch_id)
 Index('ix_signed_id_sent', XmlsSent.signed_xml_id)
 Index('ix_sent_id_response', ShippingResponse.sent_id)

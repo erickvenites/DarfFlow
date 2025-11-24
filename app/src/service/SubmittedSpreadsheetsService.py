@@ -49,13 +49,14 @@ class SubmittedSpreadsheetsService:
             return False
         return True
 
-    def process_upload(self, file, company_id: str, event: str) -> dict:
+    def process_upload(self, file, company_id: str, cnpj: str, event: str) -> dict:
         """
         Processa o upload de uma spreadsheet e a salva no diretório apropriado.
 
         Args:
             file: Arquivo da spreadsheet a ser sent.
-            company_id (str): Identificador da empresa (CNPJ, código, etc).
+            company_id (str): Identificador da empresa (código, nome, etc).
+            cnpj (str): CNPJ da empresa (14 dígitos).
             event (str): Tipo de event.
 
         Returns:
@@ -98,6 +99,7 @@ class SubmittedSpreadsheetsService:
             # Cria o registro no banco de dados
             new_spreadsheet = EventSpreadsheet(
                 company_id=company_id,
+                cnpj=cnpj,
                 event=event,
                 filename=filename,
                 file_type=file_extension,
@@ -244,13 +246,14 @@ class SubmittedSpreadsheetsService:
             raise ValueError(f"Evento {event_id} não suportado.")
         return event_class
 
-    def process_spreadsheet(self, spreadsheet_id: int, cnpj: str) -> dict:
+    def process_spreadsheet(self, spreadsheet_id: int, cnpj: str = None) -> dict:
         """
-        Processa a spreadsheet com base no ID da spreadsheet e CNPJ fornecido.
+        Processa a spreadsheet com base no ID da spreadsheet.
+        Usa o CNPJ armazenado no banco de dados ou o fornecido como parâmetro.
 
         Args:
             spreadsheet_id (int): ID da spreadsheet.
-            cnpj (str): CNPJ para validação.
+            cnpj (str, optional): CNPJ para validação (usado apenas para retrocompatibilidade).
 
         Returns:
             dict: Resultado do processamento.
@@ -261,6 +264,13 @@ class SubmittedSpreadsheetsService:
         if not spreadsheet:
             logger.error("Planilha com ID %s não encontrada.", spreadsheet_id)
             return {"message": "Planilha não encontrada"}, 404
+
+        # Usa o CNPJ do banco de dados, ou o fornecido como parâmetro
+        cnpj_to_use = spreadsheet.cnpj or cnpj
+
+        if not cnpj_to_use:
+            logger.error("CNPJ não encontrado para a planilha %s", spreadsheet_id)
+            return {"message": "CNPJ não encontrado. Atualize o registro da planilha."}, 400
 
         file_path = spreadsheet.path
         folder_path = os.path.dirname(file_path)
@@ -301,7 +311,7 @@ class SubmittedSpreadsheetsService:
 
             # AQUI ESTÁ A VALIDAÇÃO DE QUE TODAS AS CÉLULAS OBRIGATÓRIAS ESTÃO PREENCHIDAS
             event_class = self.get_event_class(event)
-            event_instance = event_class(file_path=file_path, nrInsc=cnpj, nrInscEstab=cnpj)
+            event_instance = event_class(file_path=file_path, nrInsc=cnpj_to_use, nrInscEstab=cnpj_to_use)
 
             # Valida linha por linha da spreadsheet
             df = pd.read_excel(file_path)  # Lê a spreadsheet
